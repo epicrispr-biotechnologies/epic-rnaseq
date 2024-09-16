@@ -1,0 +1,346 @@
+---
+title: |
+  <center> Epic-Bio Bulk RNA-seq Downstream QC Analysis: myoblast EPI321 vs Control </center>
+subtitle: "Tyler Borrman "
+params:
+  eval_chunk: TRUE
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    self_contained: yes
+---
+```{r setup, include=FALSE}
+##Note: the templates can be removed from the html_document description section if knitting is desired
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+# Retrieve a list of installed packages
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+installed_packages <- installed.packages()[, "Package"]
+
+# List of packages to check and install if needed
+packages_to_check <- c("tidyverse", "limma", "stringr","pheatmap","RColorBrewer","gridExtra","org.Hs.eg.db","purrr","tidyverse","VennDiagram")
+
+# Check if each package is installed, and install if not
+for (pkg in packages_to_check) {
+  if (!(pkg %in% installed_packages)) {
+    install.packages(pkg)
+    installed_packages <- c(installed_packages, pkg)
+  }
+}
+packages_for_BiocManager <- c("DESeq2","ReactomePA","clusterProfiler")
+for (pkg in packages_for_BiocManager) {
+  if (!(pkg %in% installed_packages)) {
+    BiocManager::install(pkg)
+    installed_packages <- c(installed_packages, pkg)
+  }
+}
+library(DESeq2)
+library(tidyverse)
+library(limma)
+library(stringr)
+library(pheatmap)
+library(RColorBrewer)
+library(gridExtra)
+library(org.Hs.eg.db)
+library(clusterProfiler)
+library(purrr)
+library(tidyverse)
+library(DT)
+
+
+if (!require(vsn, quietly = TRUE)){ 
+   options(BioC_mirror = "http://bioconductor.org")
+	BiocManager::install("vsn")
+}
+library(vsn)
+if (!require(EnchancedVolcano, quietly=TRUE)){devtools::install_github('kevinblighe/EnhancedVolcano')}
+library(EnhancedVolcano)
+library(ReactomePA)
+library(VennDiagram)
+```
+# Dataset overview
+
+```{r sample_info}
+#manually created file shared in the s3 bucket under the results_Dec2023 folder for cas9 counts files 
+metadata <- read_tsv("samplesheet_dec2023.tsv")
+metadata$`Sample ID` <- gsub("-",".", metadata$`Sample ID`, fixed=TRUE)
+
+metadata$Type <- gsub("untreated","Control", metadata$Type)
+metadata <- metadata[order(metadata$Sample_Name),]
+
+datatable(metadata)
+#create_dt(metadata, title = "Sample overview")
+
+```
+
+# QC:filter
+
+
+```{r, echo=F}
+
+raw_counts <- read.table(file = "Dec2023_part4_RNA_cas9_0201_GFP.v.untreatedcas9_merged_counts_genenamesnew.v2.tsv", sep = '\t', header = TRUE)
+dim(raw_counts)
+raw_counts$gene_name <- raw_counts$Genenamesnew
+raw_counts$Genenamesnew <- NULL
+matching_row <- which(raw_counts$Geneid == "cA2")
+raw_counts[matching_row, "gene_name"] <- "dCasONYX"
+## if you've got too many files in your counts folder you might need to segment down to just the counts files matching the condition that you need example provided is if you're only looking at myoblasts modify the code chunk below to suit your needs 
+#raw_counts_import <- raw_counts_import[, grepl("myoblast|Gene|gene",colnames(raw_counts_import))]
+#raw_counts<- raw_counts_import
+# # Remove ENSEMBL id's?
+raw_counts<- raw_counts[,-1]
+
+# #Remove counts rowsums < 10
+# Remove genes with < 10 read counts summed across all samples
+# !!! This filtering is not mentioned in documentation!!!
+ raw_counts_filtered <- raw_counts[-which(rowSums(raw_counts[sapply(raw_counts, is.numeric)]) < 10), ]
+
+# aggregate counts from duplicate gene names (they come from multiple ENSEMBL id's, so different transcripts)
+# !!! This aggregation is not mentioned in documentation!!!
+raw_counts_filtered <- aggregate(raw_counts_filtered[, 2:length(raw_counts_filtered)],
+                         by = list(raw_counts_filtered$gene_name), sum)
+
+
+# make geneids rownames
+raw_counts_filtered2 <- raw_counts_filtered[,-1]
+rownames(raw_counts_filtered2) <- raw_counts_filtered[,1]
+rm(raw_counts_filtered)
+write.csv(raw_counts_filtered2, "Dec2023_part4_RNA_cas9_0201_GFP.v.untreatedcas9_merged_counts_genenamesnew.v2_raw_counts_filtered.csv", row.names=T)
+
+#print dimensions i.e. num of samples and num of genes in filtered results to confirm that not all genes have been filtered out 
+dim(raw_counts_filtered2)
+ 
+```
+
+# Compute matrix
+Create a simple metadata table containing a single comparison, treated vs control. Note, this can be modified later for additional downstream analyses. Also included in metadata are sample name (e.g. 12ABIC-321) and group ID (e.g 1ABIC, 12ABIC, 15ABIC)
+
+```{r}
+
+colnames(raw_counts_filtered2) <- gsub(".bam","", colnames(raw_counts_filtered2), fixed=TRUE)
+colnames(raw_counts_filtered2) <- gsub("X","", colnames(raw_counts_filtered2), fixed=TRUE)
+colnames(raw_counts_filtered2) <- gsub("-",".", colnames(raw_counts_filtered2), fixed=TRUE)
+# Compute design matrix
+
+metadata$Sample_Name <- gsub("-",".", metadata$Sample_Name, fixed=TRUE)
+
+metadata <- metadata[order(metadata$Sample_Name),]
+
+#testing if they match
+metadata$Sample_Name == colnames(raw_counts_filtered2)
+#they do!
+# if they DON'T match them add steps above to modify your metadata datasheet to only include the rows you need to match your filtered table. 
+dds <- DESeqDataSetFromMatrix(countData = raw_counts_filtered2,
+                              colData = metadata,
+                              design = ~ Type)
+dds
+
+```
+
+# QC: Effects of transformations on the variance
+The figure below plots the standard deviation of the transformed data, across samples and against the mean, using the shifted logarithm transformation.
+ Note: The vertical axis is the square root of the variance over all samples, so including the variance due to the experimental conditions. While a flat curve of the square root of variance over the mean may seem like the goal of such transformations, this may be unreasonable in the case of datasets with many true differences due to the experimental conditions. 
+
+```{r}
+vsd <- vst(dds, blind=FALSE)
+head(assay(vsd), 3)
+# this gives log2(n + 1)
+ntd <- normTransform(dds)
+#library("vsn")
+meanSdPlot(assay(ntd))
+meanSdPlot(assay(vsd))
+
+```
+
+## PCA
+**Shows all samples by their first two principal components. Here we can visualize the overall effect of experimental covariates and batch effects.** 
+
+```{r fig.dim=c(11,9)}
+
+# pca with batch effects
+pcaBatch <- plotPCA(vsd, intgroup=c("Sample_Name", "Type", "Group"), returnData = T)
+ggplot(pcaBatch, aes(x = PC1, y = PC2, color = Type, shape=Group)) + 
+geom_point(size=3)+
+scale_color_manual(values = c("Control" = "#619CFF", "EPI321" = "#F8766D","GFP" = "#00BA38"))
+#scale_shape_manual(values=c(20,24))
+
+# batch corrected pca
+pcaData <- plotPCA(vsd, intgroup=c("Sample_Name", "Type", "Group"), returnData = T)
+pcaData <- limma::removeBatchEffect(pcaData)
+ggplot(as.data.frame(pcaData), aes(x = PC1, y = PC2, color = Type, shape=Group)) + 
+geom_point(size =3) +
+  scale_color_manual(values = c("Control" = "#619CFF", "EPI321" = "#F8766D","GFP" = "#00BA38"))
+#scale_shape_manual(values=c(20,24))
+# alternative plot
+percentVar <- round(100 * attr(pcaData, "percentVar")) 
+# only show the outlier sample names
+pcaData <- as.data.frame(pcaData)
+label_data <- pcaData[pcaData$PC1 > 40 | pcaData$PC1 < -40, ]
+metadata_group <- c("Type")
+
+plot_list <- list()
+
+p1 <- ggplot(pcaData, aes(x = PC1, y = PC2, color = Type)) + 
+    geom_text_repel(data = label_data, aes(label = name), 
+              size = 3, hjust = 0.5, vjust = -1) +
+    geom_point(size = 3) +
+    theme_classic() +
+    theme(legend.text = element_text(size = 8), legend.key.width = unit(1, "cm"))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+plot_list[[1]] <- p1
+
+for (i in seq_along(metadata_group)){
+  
+  p <- ggplot(pcaData, aes_string(x = "PC1", y = "PC2", color = metadata_group[i])) + 
+    geom_text_repel(data = label_data, aes(label = name), 
+              size = 3, hjust = 0.5) +
+    geom_point(size = 3) +
+    theme_classic() +
+    theme(legend.position = "bottom", legend.text = element_text(size = 8), legend.key.width = unit(1, "cm")) +
+    guides(color = guide_legend(ncol = 2, byrow = TRUE))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  
+  plot_list[[i+1]] <- p
+
+}
+gridExtra::grid.arrange(p)
+
+
+```
+
+## Heatmap of Top 100 Features Normalized Counts
+
+To explore a count matrix, below we show how to produce such a heatmap for top 100 genes in EPI321 vs control, and according to sample name, and group. 
+
+```{r, fig.height=20, fig.width=20}
+
+# remove ribosomal and mitochondrial genes only works for human as mouse is Mt and Rp[sl] etc 
+toremove2 <- c("^MT", "^RP[SL][[:digit:]]|^RP[[:digit:]]|^RPSA")
+
+genesToKeep <- grep(paste(toremove2, collapse = "|"), 
+                    rownames(dds), invert = TRUE)
+
+dds <- dds[genesToKeep, ]
+
+# VSD transform
+vsd <- varianceStabilizingTransformation(dds)
+# get 100 top genes
+
+select <- order(rowMeans(counts(dds, normalized = FALSE)), decreasing = TRUE)[1:99] #this was set to normalized=FALSE but all examples give normalized=TRUE so changing this to normalized=TRUE
+# annotate
+df <- as.data.frame(colData(dds)[,c("Type", "Sample_Name")])
+# an alternative data frame 
+#df <- as.data.frame(colData(dds)[,c("Group", "Sample_Name")])
+# plot heatmap
+pheatmap(assay(vsd)[select,], cluster_rows=F, show_rownames=T,
+         cluster_cols=F, annotation_col=df,main = "Unnormalized counts ordering no clustering")
+
+dds <- estimateSizeFactors(dds)
+select <- order(rowMeans(counts(dds, normalized = TRUE)), decreasing = TRUE)[1:99] 
+
+# annotate
+df <- as.data.frame(colData(dds)[,c("Type", "Sample_Name")])
+# plot heatmap
+
+pheatmap(assay(vsd)[select,], cluster_rows=F, show_rownames=T,
+         cluster_cols=F, annotation_col=df,main = "Normalized counts no clustering")
+pheatmap(assay(vsd)[select,], cluster_rows=T, show_rownames=T,
+         cluster_cols=T, annotation_col=df,main = "Normalized counts with clustering")
+# Unclear on this code from Emily on whether the normalized=TRUE in the count function is correct for the vsd transformation. Sounds like she didn't know either, she was also plotting the same plot twice originally by mistake, which I changed. May not keep these plots anyway so let's not worry for now
+```
+
+## Heatmap of the sample-to-sample distances
+Alternative heatmap of transformed data is sample clustering by applying a distance matrix function to get sample-to-sample distances. This gives an overview over similarities and dissimilarities between samples. We have to provide a hierarchical clustering.
+
+```{r, fig.height=10, fig.width=11 }
+
+sampleDists <- dist(t(assay(vsd)))
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$Type, vsd$Group, sep="-")
+
+colors <- colorRampPalette(rev(brewer.pal(9, "Blues")) )(255)
+
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors, annotation_col = df, cluster_rows = TRUE, cluster_cols = TRUE)
+
+```
+
+## Differential gene expression analysis
+**Perform DESeq results and compute all DEGs, and display them in a volcano plot.**
+\n Note: The MA plot shows the log2 fold changes attributable to a given variable over the mean of normalized counts for all the samples in the DESeqDataSet. Points will be colored red if the adjusted p value is less than 0.01. Points which fall out of the window are plotted as open triangles pointing either up or down.
+# Comparison 1: EPI321 vs Control 
+Update: the DESEQ2 alpha value has been adjusted from the default of 0.01 to .001 as discussed
+
+```{r, fig.height=10, fig.width=10}
+
+dds <- DESeq(dds)
+res <- results(dds)
+res.no = results(dds,independentFiltering = F, alpha = 0.001)
+res = results(dds,independentFiltering = T, alpha= 0.001) #updated Dec 2023 from alpha = 0.01 per client request
+DESeq2::resultsNames(dds)
+
+res <- results(dds, name="Type_EPI321_vs_Control")
+res <- results(dds, contrast=c("Type","EPI321","Control"),alpha = 0.001) #updated Dec 2023
+res.no <- results(dds, contrast=c("Type","EPI321","Control"),alpha = 0.001, independentFiltering = F)
+res$gene <- rownames(res)
+res.df <- as.data.frame(res)
+res.df <- res.df %>% dplyr::mutate(regulation=ifelse(log2FoldChange<0, "Downregulated", 
+                        "Upregulated"))
+#res.df <- res.df %>% dplyr::filter(padj < 0.05)
+
+
+# MA plot
+#plotMA(res, ylim=c(-2,2))
+
+# Volcano plot
+library(EnhancedVolcano)
+EnhancedVolcano(res,
+    lab = rownames(res),
+    title = 'EPI321 vs. Control Total DEGs: threshold of log2FC=2, pCutoff=0.01, independentFiltering=F',
+    x = 'log2FoldChange',
+    y = 'padj', caption = paste(" Total DEGS:", nrow(res.df), "log2FC >2: ", nrow(subset(res.df,log2FoldChange >= 2.0)), "log2FC < -2: ", nrow(subset(res.df,log2FoldChange <= -2.0)),"*significant log2FC >2: ", nrow(subset(res.df, log2FoldChange >= 2.0 & padj <=0.01)), "*significant log2FC <2: ", nrow(subset(res.df, log2FoldChange <= -2.0 & padj <=0.01)), "*Using adjusted p-values"),captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01)
+
+write_tsv(res.df, paste0("EpicBio_Bulk_RNAseq_decpart4_EPI321_update_cas9_032024_commented_degs_all_borrman.tsv"))
+```
+
+# Group 1A: EPI321 vs Control 
+```{r,fig.height=10, fig.width=10}
+colnames(raw_counts_filtered2) <- gsub(".bam","", colnames(raw_counts_filtered2), fixed=TRUE)
+colnames(raw_counts_filtered2) <- gsub("X","", colnames(raw_counts_filtered2), fixed=TRUE)
+colnames(raw_counts_filtered2) <- gsub("-",".", colnames(raw_counts_filtered2), fixed=TRUE)
+colnames(raw_counts_filtered2) <- gsub("_",".", colnames(raw_counts_filtered2), fixed=TRUE)
+raw_counts_filtered2_1A <- raw_counts_filtered2[,grepl(pattern="1A", colnames(raw_counts_filtered2))]
+metadata_1A <- metadata[metadata$Group=="1A",]
+dds_1A <- DESeqDataSetFromMatrix(countData = raw_counts_filtered2_1A,
+                              colData = metadata_1A,
+                              design = ~ Type)
+dds_1A <- DESeq(dds_1A)
+res_1A <- results(dds_1A)
+res_1A = results(dds_1A,independentFiltering = F)
+res_1A = results(dds_1A,independentFiltering = T, alpha= 0.001)#updated Dec 2023 from alpha = 0.01 per client request
+DESeq2::resultsNames(dds_1A)
+res_1A = results(dds_1A,independentFiltering = T, alpha= 0.001)
+res_1A <- results(dds_1A, contrast=c("Type","EPI321","Control"),alpha = 0.001)
+res_1A$gene <- rownames(res_1A)
+res_1A.df <- as.data.frame(res_1A)
+res_1A.df <- res_1A.df %>% dplyr::mutate(regulation=ifelse(log2FoldChange<0, "Downregulated", 
+                        "Upregulated"))
+```
+
+## DEG Volcano Plot and Tables
+
+```{r,fig.height=10, fig.width=10}
+EnhancedVolcano(res_1A,
+    lab = rownames(res_1A),
+    title = 'EPI321 vs. Control Total DEGs: threshold of log2FC=2, pCutoff=0.01, independentFiltering=F',
+    x = 'log2FoldChange',
+    y = 'padj', caption = paste(" Total DEGS:", nrow(res_1A.df), "log2FC >2: ", nrow(subset(res_1A.df,log2FoldChange >= 2.0)), "log2FC < -2: ", nrow(subset(res_1A.df,log2FoldChange <= -2.0)),"*significant log2FC >2: ", nrow(subset(res_1A.df, log2FoldChange >= 2.0 & padj <=0.01)), "*significant log2FC <2: ", nrow(subset(res_1A.df, log2FoldChange <= -2.0 & padj <=0.01)), "*Using adjusted p-values"),captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01)
+
+```
+
