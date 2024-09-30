@@ -175,12 +175,11 @@ pheatmap(sampleDistMatrix,
 Points will be colored red if the adjusted p value is less than 0.01. 
 Points which fall out of the window are plotted as open triangles pointing either up or down.
 # Comparison 1: EPI321 vs Control 
-Update: the DESEQ2 alpha value has been adjusted from the default of 0.01 to .001 as discussed
 
 ```{r, fig.height=10, fig.width=10}
 
 dds <- DESeq(dds)
-res <- results(dds, contrast=c("Type","EPI321","Control"), alpha = 0.001) #updated Dec 2023 from alpha = 0.01 *** why was this changed?
+res <- results(dds, contrast=c("Type","EPI321","Control"), alpha = 0.01) 
 res$gene <- rownames(res)
 res.df <- as.data.frame(res)
 res.df <- res.df %>% dplyr::mutate(regulation=ifelse(log2FoldChange<0, "Downregulated", 
@@ -201,6 +200,6 @@ EnhancedVolcano(res,
       "*Using adjusted p-values"),
     captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01)
 
-write_tsv(res.df, "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/nfcore-rnaseq/results/test_1ABIC_GRCh38_109/deseq2/epic_rnaseq_test_1ABIC_degs_all_borrman.tsv")
+write_tsv(res.df, "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/test_1ABIC_GRCh38_109/deseq2/alpha_01/epic_rnaseq_test_1ABIC_degs_all_borrman_alpha_01.tsv")
 ```
 
