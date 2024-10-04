@@ -1,6 +1,12 @@
 ---
 params:
   study: "Study Name"
+  # metadata_path: "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv"
+  # salmon_path: "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon"
+  # deg_path: "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv"
+  metadata_path: "placeholder"
+  salmon_path: "placeholder"
+  deg_path: "placeholder"
 title: |
   | Differential gene expression analysis report
   | `r params$study`
@@ -81,14 +87,19 @@ library(VennDiagram)
 
 ```{r sample_info}
 
-metadata <- read_tsv("G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/excelra-DE/samplesheet_1ABIC.tsv")
-metadata$`Sample ID` <- gsub("-",".", metadata$`Sample ID`, fixed=TRUE)
+# params <- list(
+#     "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
+#     "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
+#     "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv"
+# )
 
-metadata$Type <- gsub("untreated","Control", metadata$Type)
-metadata <- metadata[order(metadata$Sample_Name),]
+# names(params) <- c("metadata_path", "salmon_path", "deg_path")
 
+metadata <- read_csv(params$metadata_path)
+metadata <- metadata[c("sample", "condition")]
 datatable(metadata)
-
+metadata <- as.data.frame(metadata)
+rownames(metadata) <- metadata$sample
 ```
 
 
@@ -97,24 +108,23 @@ datatable(metadata)
 # Generate DESeq2 object
 
 files <- file.path(
-  "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/nfcore-rnaseq/results/test_1ABIC_GRCh38_109/salmon",
-  metadata$Sample,
+  params$salmon_path,
+  metadata$sample,
   "quant.sf"
 )
-names(files) <- metadata$Sample
+names(files) <- metadata$sample
 tx2gene <- read_tsv(
-  "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/nfcore-rnaseq/results/test_1ABIC_GRCh38_109/salmon/tx2gene.tsv",
+  paste(params$salmon_path, "tx2gene.tsv", sep="/"),
   col_names = c("tx_id", "gene_id", "gene_name")
 )
 
 tx2gene <- tx2gene[c("tx_id", "gene_name")]
-
 txi <- tximport(files, type="salmon", tx2gene=tx2gene)
 
 dds <- DESeqDataSetFromTximport(
   txi,
   colData = metadata,
-  design = ~ Type
+  design = ~ condition
 )
 
 ```
@@ -151,19 +161,19 @@ meanSdPlot(assay(vsd))
 ```{r fig.dim=c(11,9)}
 
 # pca with batch effects
-pcaBatch <- plotPCA(vsd, intgroup=c("Sample", "Type", "Group"), returnData = T)
-ggplot(pcaBatch, aes(x = PC1, y = PC2, color = Type, shape=Group)) + 
+pcaBatch <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
+ggplot(pcaBatch, aes(x = PC1, y = PC2, color = condition)) + 
   geom_point(size=3) +
   ggtitle("PCA with batch effects") +
-  scale_color_manual(values = c("Control" = "#619CFF", "EPI321" = "#F8766D","GFP" = "#00BA38"))
+  scale_color_manual(values = c("CONTROL" = "#619CFF", "EPI321" = "#F8766D"))
 
 # batch corrected pca
-pcaData <- plotPCA(vsd, intgroup=c("Sample", "Type", "Group"), returnData = T)
+pcaData <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
 pcaData <- limma::removeBatchEffect(pcaData)
-ggplot(as.data.frame(pcaData), aes(x = PC1, y = PC2, color = Type, shape=Group)) + 
+ggplot(as.data.frame(pcaData), aes(x = PC1, y = PC2, color = condition)) + 
   geom_point(size =3) +
   ggtitle("PCA without batch effects") +
-  scale_color_manual(values = c("Control" = "#619CFF", "EPI321" = "#F8766D","GFP" = "#00BA38"))
+  scale_color_manual(values = c("CONTROL" = "#619CFF", "EPI321" = "#F8766D"))
 ```
 
 # Heatmap of the sample-to-sample distances
@@ -177,7 +187,7 @@ sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
 colors <- colorRampPalette(rev(brewer.pal(9, "Blues")) )(255)
 
-df <- as.data.frame(colData(dds)[,c("Type", "Sample")])
+df <- as.data.frame(colData(dds)[,c("condition", "sample")])
 pheatmap(sampleDistMatrix,
          clustering_distance_rows=sampleDists,
          clustering_distance_cols=sampleDists,
@@ -195,17 +205,16 @@ Points which fall out of the window are plotted as open triangles pointing eithe
 ```{r, fig.height=10, fig.width=10}
 
 dds <- DESeq(dds)
-res <- results(dds, contrast=c("Type","EPI321","Control"), alpha = 0.01) 
+res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
 res$gene <- rownames(res)
 res.df <- as.data.frame(res)
 res.df <- res.df %>% dplyr::mutate(regulation=ifelse(log2FoldChange<0, "Downregulated", 
                         "Upregulated"))
 
 # Volcano plot
-library(EnhancedVolcano)
 EnhancedVolcano(res,
     lab = rownames(res),
-    title = 'EPI321 vs. Control Total DEGs: threshold of log2FC=2, pCutoff=0.01',
+    title = 'EPI321 vs. CONTROL Total DEGs: threshold of log2FC=2, pCutoff=0.01',
     x = 'log2FoldChange',
     y = 'padj',
     caption = paste(" Total DEGS:", nrow(res.df),
@@ -216,6 +225,6 @@ EnhancedVolcano(res,
       "*Using adjusted p-values"),
     captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01)
 
-write_tsv(res.df, "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/test_1ABIC_GRCh38_109/deseq2/alpha_01/epic_rnaseq_test_1ABIC_degs_all_borrman_alpha_01.tsv")
+write_tsv(res.df, params$deg_path)
 ```
 
