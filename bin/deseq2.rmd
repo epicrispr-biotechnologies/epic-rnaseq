@@ -1,7 +1,9 @@
 ---
 params:
-  eval_chunk: TRUE
-title: "Differential gene expression analysis"
+  study: "Study Name"
+title: |
+  | Differential gene expression analysis report
+  | `r params$study`
 date: "`r Sys.Date()`"
 author: "Tyler Borrman"
 version: "1.0"
@@ -12,6 +14,16 @@ output:
     
 css: deseq2.css
 ---
+
+<!--
+# Differential Gene Expression Analysis Report
+This R Markdown document performs differential gene expression analysis for a specified study. 
+It includes data preprocessing, statistical analysis, and visualization of results.
+
+Usage:
+rmarkdown::render("deseq2.rmd", params = list(study = "Study Name"))
+-->
+
 ```{r setup, include=FALSE}
 ##Note: the templates can be removed from the html_document description section if knitting is desired
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
