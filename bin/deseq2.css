@@ -1,0 +1,21 @@
+#sidebar h2 {
+    background-color: #0a254d;
+    background-image: url("https://epicrispr.com/wp-content/uploads/2024/08/Epicrispr_White2.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    text-indent: -99999px;
+    font-size: xx-large;
+}
+
+h1, h2, h3, h4, h5, h6, legend {
+    color: #1c3f74;
+}
+
+#sidebar {
+    background-color: black;
+}
+
+#postamble {
+    border-top: black;
+}

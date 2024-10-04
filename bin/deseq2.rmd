@@ -1,14 +1,16 @@
 ---
-title: |
-  <center> Epic-Bio Bulk RNA-seq Downstream QC Analysis: myoblast EPI321 vs Control </center>
-subtitle: "Tyler Borrman "
 params:
   eval_chunk: TRUE
+title: "Differential gene expression analysis"
+date: "`r Sys.Date()`"
+author: "Tyler Borrman"
+version: "1.0"
 output:
-  html_document:
-    toc: true
-    toc_depth: 2
+  rmdformats::readthedown:
+    toc_depth: 6
     self_contained: yes
+    
+css: deseq2.css
 ---
 ```{r setup, include=FALSE}
 ##Note: the templates can be removed from the html_document description section if knitting is desired
@@ -131,7 +133,7 @@ meanSdPlot(assay(vsd))
 
 ```
 
-## PCA
+# PCA
 **Shows all samples by their first two principal components. Here we can visualize the overall effect of experimental covariates and batch effects.** 
 
 ```{r fig.dim=c(11,9)}
@@ -139,7 +141,8 @@ meanSdPlot(assay(vsd))
 # pca with batch effects
 pcaBatch <- plotPCA(vsd, intgroup=c("Sample", "Type", "Group"), returnData = T)
 ggplot(pcaBatch, aes(x = PC1, y = PC2, color = Type, shape=Group)) + 
-geom_point(size=3) +
+  geom_point(size=3) +
+  ggtitle("PCA with batch effects") +
   scale_color_manual(values = c("Control" = "#619CFF", "EPI321" = "#F8766D","GFP" = "#00BA38"))
 
 # batch corrected pca
@@ -147,10 +150,11 @@ pcaData <- plotPCA(vsd, intgroup=c("Sample", "Type", "Group"), returnData = T)
 pcaData <- limma::removeBatchEffect(pcaData)
 ggplot(as.data.frame(pcaData), aes(x = PC1, y = PC2, color = Type, shape=Group)) + 
   geom_point(size =3) +
+  ggtitle("PCA without batch effects") +
   scale_color_manual(values = c("Control" = "#619CFF", "EPI321" = "#F8766D","GFP" = "#00BA38"))
 ```
 
-## Heatmap of the sample-to-sample distances
+# Heatmap of the sample-to-sample distances
 Alternative heatmap of transformed data is sample clustering by applying a distance matrix function to
 get sample-to-sample distances. This gives an overview over similarities and dissimilarities between samples. 
 We have to provide a hierarchical clustering.
@@ -169,12 +173,12 @@ pheatmap(sampleDistMatrix,
 
 ```
 
-## Differential gene expression analysis
+# Differential gene expression analysis
 **Perform DESeq results and compute all DEGs, and display them in a volcano plot.**
 \n Note: The MA plot shows the log2 fold changes attributable to a given variable over the mean of normalized counts for all the samples in the DESeqDataSet. 
 Points will be colored red if the adjusted p value is less than 0.01. 
 Points which fall out of the window are plotted as open triangles pointing either up or down.
-# Comparison 1: EPI321 vs Control 
+
 
 ```{r, fig.height=10, fig.width=10}
 
