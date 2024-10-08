@@ -89,15 +89,7 @@ library(VennDiagram)
 # Dataset overview
 
 ```{r sample_info}
-
-# params <- list(
-#     "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
-#     "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
-#     "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv"
-# )
-
-# names(params) <- c("metadata_path", "salmon_path", "deg_path")
-
+# Load metadata
 metadata <- read_csv(params$metadata_path)
 metadata <- metadata[c("sample", "condition")]
 datatable(metadata)
@@ -142,47 +134,57 @@ dds <- dds[keep,]
 ```
 
 
-# QC: Effects of transformations on the variance
-The figure below plots the standard deviation of the transformed data, across samples and against the mean, using the shifted logarithm transformation.
-Note: The vertical axis is the square root of the variance over all samples, 
-so including the variance due to the experimental conditions. 
-While a flat curve of the square root of variance over the mean may seem like the goal of such transformations, 
-this may be unreasonable in the case of datasets with many true differences due to the experimental conditions. 
+# Effects of transformations on the variance
+The figure below plots the standard deviation of the transformed data, across samples and against the mean,
+using the variance stabilizing transformation (VST). 
+The differential expression analysis operates on the raw counts using discrete distributions; 
+however the PCA and sample-to-sample distances analyses use the VST data as input to improve visualization.
+The expectation of the VST is that the variance will be approximately independent of the mean (horizontal line).
 
 ```{r}
 vsd <- vst(dds, blind=FALSE)
-# This gives log2(n + 1)
-ntd <- normTransform(dds)
-meanSdPlot(assay(ntd))
 meanSdPlot(assay(vsd))
 
 ```
 
 # PCA
-**Shows all samples by their first two principal components. Here we can visualize the overall effect of experimental covariates and batch effects.** 
+PCA analysis on top 500 genes with greatest variance using VST transformed data
 
+## Biplot
 ```{r fig.dim=c(11,9)}
 
-# pca with batch effects
-pcaBatch <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
-ggplot(pcaBatch, aes(x = PC1, y = PC2, color = condition)) + 
-  geom_point(size=3) +
-  ggtitle("PCA with batch effects") +
-  scale_color_manual(values = c("CONTROL" = "#619CFF", "EPI321" = "#F8766D"))
+# PCA biplot
+pca_obj <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
+ggplot(pca_obj, aes(x = PC1, y = PC2, color = condition)) + 
+  geom_point(size=3)
+```
 
-# batch corrected pca
-pcaData <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
-pcaData <- limma::removeBatchEffect(pcaData)
-ggplot(as.data.frame(pcaData), aes(x = PC1, y = PC2, color = condition)) + 
-  geom_point(size =3) +
-  ggtitle("PCA without batch effects") +
-  scale_color_manual(values = c("CONTROL" = "#619CFF", "EPI321" = "#F8766D"))
+
+## Scree plot
+```{r fig.dim=c(11,9)}
+
+scree_plot <- function(vsd){
+  rv <- rowVars(assay(vsd))
+  ntop <- 500
+  # select the ntop genes by variance
+  select <- order(rv, decreasing=TRUE)[seq_len(min(ntop, length(rv)))]
+  # perform a PCA on the data in assay(x) for the selected genes
+  pca <- prcomp(t(assay(vsd)[select,]))
+  # the contribution to the total variance for each component
+  percentVar <- pca$sdev^2 / sum( pca$sdev^2 )
+  PC_names <- paste0("PC", 1:length(percentVar))
+  scree_df <- data.frame(PC_names, percentVar)
+  # Plot the scree plot
+  ggplot(scree_df, aes(x = PC_names, y = percentVar)) +
+    geom_bar(stat = "identity", fill = "#1c3f74") +
+    labs(x = "Principal component", y = "Proportion of variance explained")
+}
+
+scree_plot(vsd)
 ```
 
 # Heatmap of the sample-to-sample distances
-Alternative heatmap of transformed data is sample clustering by applying a distance matrix function to
-get sample-to-sample distances. This gives an overview over similarities and dissimilarities between samples. 
-We have to provide a hierarchical clustering.
+Distances between samples using VST transformed data.
 
 ```{r, fig.height=10, fig.width=11}
 
@@ -199,7 +201,7 @@ pheatmap(sampleDistMatrix,
 ```
 
 # Differential gene expression analysis
-**Identify DEGs via DESeq2 and display them in a volcano plot.**
+Identify DEGs via DESeq2 and display them in a volcano plot.
 
 ```{r, echo=F}
 dds <- DESeq(dds)
