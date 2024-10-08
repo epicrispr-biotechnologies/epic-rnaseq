@@ -1,12 +1,9 @@
 ---
 params:
   study: "Study Name"
-  # metadata_path: "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv"
-  # salmon_path: "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon"
-  # deg_path: "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv"
-  metadata_path: "placeholder"
-  salmon_path: "placeholder"
-  deg_path: "placeholder"
+  metadata_path: "path/to/metadata.csv"
+  salmon_path: "path/to/salmon"
+  deg_path: "path/to/deseq2/degs.tsv"
 title: |
   | Differential gene expression analysis report
   | `r params$study`
@@ -27,7 +24,13 @@ This R Markdown document performs differential gene expression analysis for a sp
 It includes data preprocessing, statistical analysis, and visualization of results.
 
 Usage:
-rmarkdown::render("deseq2.rmd", params = list(study = "Study Name"))
+rmarkdown::render(
+  "bin/deseq2.rmd", 
+  params = list(study = "JIRA_BDS-1008_Mouse_3m", 
+  metadata_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
+  salmon_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
+  deg_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv")
+)
 -->
 
 ```{r setup, include=FALSE}
@@ -181,7 +184,7 @@ Alternative heatmap of transformed data is sample clustering by applying a dista
 get sample-to-sample distances. This gives an overview over similarities and dissimilarities between samples. 
 We have to provide a hierarchical clustering.
 
-```{r, fig.height=10, fig.width=11 }
+```{r, fig.height=10, fig.width=11}
 
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
@@ -196,22 +199,21 @@ pheatmap(sampleDistMatrix,
 ```
 
 # Differential gene expression analysis
-**Perform DESeq results and compute all DEGs, and display them in a volcano plot.**
-\n Note: The MA plot shows the log2 fold changes attributable to a given variable over the mean of normalized counts for all the samples in the DESeqDataSet. 
-Points will be colored red if the adjusted p value is less than 0.01. 
-Points which fall out of the window are plotted as open triangles pointing either up or down.
+**Identify DEGs via DESeq2 and display them in a volcano plot.**
 
-
-```{r, fig.height=10, fig.width=10}
-
+```{r, echo=F}
 dds <- DESeq(dds)
 res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
 res$gene <- rownames(res)
 res.df <- as.data.frame(res)
-res.df <- res.df %>% dplyr::mutate(regulation=ifelse(log2FoldChange<0, "Downregulated", 
-                        "Upregulated"))
+res.df <- res.df %>% dplyr::mutate(
+  regulation=ifelse(log2FoldChange < 0, "Downregulated", "Upregulated")
+)
+```
 
-# Volcano plot
+## Volcano plot
+
+```{r, fig.height=10, fig.width=10}
 EnhancedVolcano(res,
     lab = rownames(res),
     title = 'EPI321 vs. CONTROL Total DEGs: threshold of log2FC=2, pCutoff=0.01',
@@ -223,8 +225,25 @@ EnhancedVolcano(res,
       "*significant log2FC >2: ", nrow(subset(res.df, log2FoldChange >= 2.0 & padj <=0.01)),
       "*significant log2FC <2: ", nrow(subset(res.df, log2FoldChange <= -2.0 & padj <=0.01)),
       "*Using adjusted p-values"),
-    captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01)
+    captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01
+)
+```
 
+## DESeq2 table
+
+```{r, echo=F}
+round_cols <- names(res.df)[sapply(res.df, is.numeric)]
+datatable(res.df,
+  extensions = "Buttons",
+  options = list(
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print")
+  )
+) %>%
+formatSignif(
+  columns = round_cols,
+  digits = 7
+)
 write_tsv(res.df, params$deg_path)
 ```
 
