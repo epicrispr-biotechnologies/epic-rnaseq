@@ -141,7 +141,7 @@ The differential expression analysis operates on the raw counts using discrete d
 however the PCA and sample-to-sample distances analyses use the VST data as input to improve visualization.
 The expectation of the VST is that the variance will be approximately independent of the mean (horizontal line).
 
-```{r}
+```{r, fig.height=9, fig.width=11}
 vsd <- vst(dds, blind=FALSE)
 meanSdPlot(assay(vsd))
 
@@ -151,7 +151,7 @@ meanSdPlot(assay(vsd))
 PCA analysis on top 500 genes with greatest variance using VST transformed data
 
 ## Biplot
-```{r fig.dim=c(11,9)}
+```{r, fig.height=9, fig.width=11}
 
 # PCA biplot
 pca_obj <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
@@ -161,7 +161,7 @@ ggplot(pca_obj, aes(x = PC1, y = PC2, color = condition)) +
 
 
 ## Scree plot
-```{r fig.dim=c(11,9)}
+```{r, fig.height=9, fig.width=11}
 
 scree_plot <- function(vsd){
   rv <- rowVars(assay(vsd))
@@ -186,7 +186,7 @@ scree_plot(vsd)
 # Heatmap of the sample-to-sample distances
 Distances between samples using VST transformed data.
 
-```{r, fig.height=10, fig.width=11}
+```{r, fig.height=9, fig.width=11}
 
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
