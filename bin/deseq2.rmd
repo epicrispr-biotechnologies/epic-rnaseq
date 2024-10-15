@@ -36,7 +36,7 @@ rmarkdown::render(
 -->
 
 ```{r setup, include=FALSE}
-##Note: the templates can be removed from the html_document description section if knitting is desired
+# Install and load required packages
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 # Set CRAN mirror
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
@@ -46,7 +46,17 @@ if (!require("BiocManager", quietly = TRUE))
 installed_packages <- installed.packages()[, "Package"]
 
 # List of packages to check and install if needed
-packages_to_check <- c("tidyverse", "limma", "stringr","pheatmap","RColorBrewer","gridExtra","org.Hs.eg.db","purrr","tidyverse","VennDiagram")
+packages_to_check <- c(
+  "readr",
+  "tidyverse",
+  "stringr",
+  "pheatmap",
+  "RColorBrewer",
+  "gridExtra",
+  "org.Hs.eg.db",
+  "purrr",
+  "DT"
+)
 
 # Check if each package is installed, and install if not
 for (pkg in packages_to_check) {
@@ -55,38 +65,39 @@ for (pkg in packages_to_check) {
     installed_packages <- c(installed_packages, pkg)
   }
 }
-packages_for_BiocManager <- c("DESeq2","ReactomePA","clusterProfiler")
+
+# List of Bioconductor packages to check and install if needed
+packages_for_BiocManager <- c(
+  "DESeq2",
+  "tximport",
+  "clusterProfiler",
+  "vsn"
+)
+
 for (pkg in packages_for_BiocManager) {
   if (!(pkg %in% installed_packages)) {
     BiocManager::install(pkg)
     installed_packages <- c(installed_packages, pkg)
   }
 }
-library(DESeq2)
-library(tximport)
+
 library(readr)
 library(tidyverse)
-library(limma)
 library(stringr)
 library(pheatmap)
 library(RColorBrewer)
 library(gridExtra)
 library(org.Hs.eg.db)
-library(clusterProfiler)
 library(purrr)
-library(tidyverse)
 library(DT)
-
-
-if (!require(vsn, quietly = TRUE)){ 
-   options(BioC_mirror = "http://bioconductor.org")
-	BiocManager::install("vsn")
-}
+library(DESeq2)
+library(tximport)
+library(clusterProfiler)
 library(vsn)
+
+# Install dev version of EnhancedVolcano
 if (!require(EnchancedVolcano, quietly=TRUE)){devtools::install_github('kevinblighe/EnhancedVolcano')}
 library(EnhancedVolcano)
-library(ReactomePA)
-library(VennDiagram)
 ```
 # Dataset overview
 
@@ -133,6 +144,10 @@ dds <- DESeqDataSetFromTximport(
 
 keep <- rowSums(counts(dds)) >= 10
 dds <- dds[keep,]
+
+# Run DESeq2
+dds <- DESeq(dds)
+
 ```
 
 
@@ -147,6 +162,25 @@ The expectation of the VST is that the variance will be approximately independen
 vsd <- vst(dds, blind=FALSE)
 meanSdPlot(assay(vsd))
 
+```
+
+# Top 25 highest expressed genes
+Heatmap of the top 25 genes with the highest average expression across all samples
+using VST transformed data.
+
+```{r, fig.height=9, fig.width=9}
+# Get top 25 genes
+select <- order(rowMeans(counts(dds, normalized = TRUE)),
+  decreasing = TRUE)[1:25]
+df <- as.data.frame(colData(dds)["condition"])
+# Heatmap of top 25 genes
+pheatmap(assay(vsd)[select,],
+  cluster_rows=FALSE,
+  show_rownames=TRUE,
+  cluster_cols=FALSE,
+  annotation_col=df,
+  fontsize=9
+)
 ```
 
 # PCA
@@ -206,7 +240,6 @@ pheatmap(sampleDistMatrix,
 Identify DEGs via DESeq2 and display them in a volcano plot.
 
 ```{r, warning=TRUE}
-dds <- DESeq(dds)
 
 if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
