@@ -10,6 +10,7 @@
 include { DESEQ2_QC as DESEQ2_QC_STAR_SALMON } from '../../modules/local/deseq2_qc'
 include { DESEQ2_QC as DESEQ2_QC_RSEM        } from '../../modules/local/deseq2_qc'
 include { DESEQ2_QC as DESEQ2_QC_PSEUDO      } from '../../modules/local/deseq2_qc'
+include { DESEQ2_REPORT                      } from '../../modules/local/deseq2_report'
 include { MULTIQC_CUSTOM_BIOTYPE             } from '../../modules/local/multiqc_custom_biotype'
 
 //
@@ -68,6 +69,11 @@ include { FASTQ_QC_TRIM_FILTER_SETSTRANDEDNESS              } from '../../subwor
     RUN MAIN WORKFLOW
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+
+// test data for deseq2_report debugging
+job_tag = "JIRA_BDS-1008_Mouse_3m"
+deseq2_samplesheet = file("/home/ec2-user/projects/epic_rnaseq/epic-rnaseq/mouse_3m_samplesheet_deseq2.csv")
+rnaseq_data = files("/home/ec2-user/projects/epic_rnaseq/epic-rnaseq/data/")
 
 // Header files for MultiQC
 ch_pca_header_multiqc           = file("$projectDir/workflows/rnaseq/assets/multiqc/deseq2_pca_header.txt", checkIfExists: true)
@@ -689,6 +695,17 @@ workflow RNASEQ {
             ch_versions = ch_versions.mix(DESEQ2_QC_PSEUDO.out.versions)
         }
     }
+
+    //
+    // DESEQ2 REPORT TEST
+    //
+
+    DESEQ2_REPORT (
+        job_tag,
+        deseq2_samplesheet,
+        rnaseq_data
+    )
+    ch_versions = ch_versions.mix(DESEQ2_REPORT.out.versions)
 
     //
     // Collate and save software versions

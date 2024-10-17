@@ -1,0 +1,30 @@
+nextflow_process {
+
+    name "Test Process DESEQ2_REPORT"
+    script "modules/local/deseq2_report/main.nf"
+    process "DESEQ2_REPORT"
+
+    test("deseq2 [html]") {
+
+        when {
+            params {
+                outdir = "tests/results"
+            }
+            process {
+                """
+                input[0] = "JIRA_BDS-1008_Mouse_3m"
+                input[1] = file("/home/ec2-user/projects/epic_rnaseq/epic-rnaseq/mouse_3m_samplesheet_deseq2.csv")
+                input[2] = files("/home/ec2-user/projects/epic_rnaseq/epic-rnaseq/data/")
+
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert snapshot(process.out).match()
+        }
+
+    }
+
+}
