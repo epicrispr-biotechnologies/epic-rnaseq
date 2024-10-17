@@ -26,15 +26,17 @@ It includes data preprocessing, statistical analysis, and visualization of resul
 Usage:
 rmarkdown::render(
   "bin/deseq2.rmd", 
-  params = list(study = "JIRA_BDS-1008_Mouse_3m", 
-  metadata_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
-  salmon_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
-  deg_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv")
+  params = list(
+    study = "JIRA_BDS-1008_Mouse_3m", 
+    metadata_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
+    salmon_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
+    deg_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv"
+  )
 )
 -->
 
 ```{r setup, include=FALSE}
-##Note: the templates can be removed from the html_document description section if knitting is desired
+# Install and load required packages
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 # Set CRAN mirror
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
@@ -44,7 +46,17 @@ if (!require("BiocManager", quietly = TRUE))
 installed_packages <- installed.packages()[, "Package"]
 
 # List of packages to check and install if needed
-packages_to_check <- c("tidyverse", "limma", "stringr","pheatmap","RColorBrewer","gridExtra","org.Hs.eg.db","purrr","tidyverse","VennDiagram")
+packages_to_check <- c(
+  "readr",
+  "tidyverse",
+  "stringr",
+  "pheatmap",
+  "RColorBrewer",
+  "gridExtra",
+  "org.Hs.eg.db",
+  "purrr",
+  "DT"
+)
 
 # Check if each package is installed, and install if not
 for (pkg in packages_to_check) {
@@ -53,38 +65,39 @@ for (pkg in packages_to_check) {
     installed_packages <- c(installed_packages, pkg)
   }
 }
-packages_for_BiocManager <- c("DESeq2","ReactomePA","clusterProfiler")
+
+# List of Bioconductor packages to check and install if needed
+packages_for_BiocManager <- c(
+  "DESeq2",
+  "tximport",
+  "clusterProfiler",
+  "vsn"
+)
+
 for (pkg in packages_for_BiocManager) {
   if (!(pkg %in% installed_packages)) {
     BiocManager::install(pkg)
     installed_packages <- c(installed_packages, pkg)
   }
 }
-library(DESeq2)
-library(tximport)
+
 library(readr)
 library(tidyverse)
-library(limma)
 library(stringr)
 library(pheatmap)
 library(RColorBrewer)
 library(gridExtra)
 library(org.Hs.eg.db)
-library(clusterProfiler)
 library(purrr)
-library(tidyverse)
 library(DT)
-
-
-if (!require(vsn, quietly = TRUE)){ 
-   options(BioC_mirror = "http://bioconductor.org")
-	BiocManager::install("vsn")
-}
+library(DESeq2)
+library(tximport)
+library(clusterProfiler)
 library(vsn)
+
+# Install dev version of EnhancedVolcano
 if (!require(EnchancedVolcano, quietly=TRUE)){devtools::install_github('kevinblighe/EnhancedVolcano')}
 library(EnhancedVolcano)
-library(ReactomePA)
-library(VennDiagram)
 ```
 # Dataset overview
 
@@ -131,6 +144,10 @@ dds <- DESeqDataSetFromTximport(
 
 keep <- rowSums(counts(dds)) >= 10
 dds <- dds[keep,]
+
+# Run DESeq2
+dds <- DESeq(dds)
+
 ```
 
 
@@ -145,6 +162,25 @@ The expectation of the VST is that the variance will be approximately independen
 vsd <- vst(dds, blind=FALSE)
 meanSdPlot(assay(vsd))
 
+```
+
+# Top 25 highest expressed genes
+Heatmap of the top 25 genes with the highest average expression across all samples
+using VST transformed data.
+
+```{r, fig.height=9, fig.width=9}
+# Get top 25 genes
+select <- order(rowMeans(counts(dds, normalized = TRUE)),
+  decreasing = TRUE)[1:25]
+df <- as.data.frame(colData(dds)["condition"])
+# Heatmap of top 25 genes
+pheatmap(assay(vsd)[select,],
+  cluster_rows=FALSE,
+  show_rownames=TRUE,
+  cluster_cols=FALSE,
+  annotation_col=df,
+  fontsize=9
+)
 ```
 
 # PCA
@@ -203,9 +239,16 @@ pheatmap(sampleDistMatrix,
 # Differential gene expression analysis
 Identify DEGs via DESeq2 and display them in a volcano plot.
 
-```{r, echo=F}
-dds <- DESeq(dds)
-res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
+```{r, warning=TRUE}
+
+if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
+} else if ("6-MONTH" %in% metadata$condition & "3-MONTH" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","6-MONTH","3-MONTH"), alpha = 0.01) 
+} else {
+  warning("No contrast specified. Using default contrast.")
+  res <- results(dds, alpha = 0.01)
+}
 res$gene <- rownames(res)
 res.df <- as.data.frame(res)
 res.df <- res.df %>% dplyr::mutate(
@@ -216,11 +259,19 @@ res.df <- res.df %>% dplyr::mutate(
 ## Volcano plot
 
 ```{r, fig.height=10, fig.width=10}
+get_contrast <- function(result_obj) {
+  contrast_string <- elementMetadata(result_obj)["log2FoldChange","description"]
+  words <- strsplit(contrast_string, "\\s+")[[1]]  # Split the string by whitespace
+  contrast <- tail(words, 3)  # Get the last three words
+  return(paste(contrast, collapse = " "))  # Combine them back into a single string
+}
+contrast <- get_contrast(res)
+
 EnhancedVolcano(res,
     lab = rownames(res),
-    title = 'EPI321 vs. CONTROL Total DEGs: threshold of log2FC=2, pCutoff=0.01',
-    x = 'log2FoldChange',
-    y = 'padj',
+    title = paste(contrast,"Total DEGs: threshold of log2FC=2, pCutoff=0.01"),
+    x = "log2FoldChange",
+    y = "padj",
     caption = paste(" Total DEGS:", nrow(res.df),
       "log2FC >2: ", nrow(subset(res.df,log2FoldChange >= 2.0)),
       "log2FC < -2: ", nrow(subset(res.df,log2FoldChange <= -2.0)),
