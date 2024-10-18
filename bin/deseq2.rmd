@@ -207,8 +207,13 @@ scree_plot <- function(vsd){
   # perform a PCA on the data in assay(x) for the selected genes
   pca <- prcomp(t(assay(vsd)[select,]))
   # the contribution to the total variance for each component
-  percentVar <- pca$sdev^2 / sum( pca$sdev^2 )
+  percentVar <- pca$sdev^2 / sum(pca$sdev^2)
   PC_names <- paste0("PC", 1:length(percentVar))
+  # subset to first 9 components if 10 or more
+  if (length(percentVar) > 9) {
+    percentVar <- percentVar[1:9]
+    PC_names <- PC_names[1:9]
+  }
   scree_df <- data.frame(PC_names, percentVar)
   # Plot the scree plot
   ggplot(scree_df, aes(x = PC_names, y = percentVar)) +
@@ -245,7 +250,9 @@ Pre-filtering applied to keep only genes that have a count of at least 10 reads 
 if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
 } else if ("6-MONTH" %in% metadata$condition & "3-MONTH" %in% metadata$condition) {
-  res <- results(dds, contrast=c("condition","6-MONTH","3-MONTH"), alpha = 0.01) 
+  res <- results(dds, contrast=c("condition","6-MONTH","3-MONTH"), alpha = 0.01)
+} else if ("UD" %in% metadata$condition & "D2" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","D2","UD"), alpha = 0.01) 
 } else {
   warning("No contrast specified. Using default contrast.")
   res <- results(dds, alpha = 0.01)
@@ -283,7 +290,7 @@ EnhancedVolcano(res,
     FCcutoff = 2,
     pCutoff = 0.01,
     drawConnectors = TRUE,
-    typeConnectors = "closed"
+    typeConnectors = "open"
 
 )
 ```
