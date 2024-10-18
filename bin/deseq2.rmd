@@ -129,7 +129,7 @@ tx2gene <- read_tsv(
 tx2gene <- tx2gene[c("tx_id", "gene_name")]
 txi <- tximport(files, type="salmon", tx2gene=tx2gene)
 
-dds <- DESeqDataSetFromTximport(
+dds_unfiltered <- DESeqDataSetFromTximport(
   txi,
   colData = metadata,
   design = ~ condition
@@ -142,8 +142,8 @@ dds <- DESeqDataSetFromTximport(
 # Here we perform pre-filtering to keep only genes 
 # that have a count of at least 10 reads summed across all samples.
 
-keep <- rowSums(counts(dds)) >= 10
-dds <- dds[keep,]
+keep <- rowSums(counts(dds_unfiltered)) >= 10
+dds <- dds_unfiltered[keep,]
 
 # Run DESeq2
 dds <- DESeq(dds)
@@ -238,6 +238,7 @@ pheatmap(sampleDistMatrix,
 
 # Differential gene expression analysis
 Identify DEGs via DESeq2 and display them in a volcano plot.
+Pre-filtering applied to keep only genes that have a count of at least 10 reads summed across all samples.
 
 ```{r, warning=TRUE}
 
@@ -278,12 +279,35 @@ EnhancedVolcano(res,
       "*significant log2FC >2: ", nrow(subset(res.df, log2FoldChange >= 2.0 & padj <=0.01)),
       "*significant log2FC <2: ", nrow(subset(res.df, log2FoldChange <= -2.0 & padj <=0.01)),
       "*Using adjusted p-values"),
-    captionLabSize = 11, FCcutoff = 2, pCutoff = 0.01
+    captionLabSize = 11,
+    FCcutoff = 2,
+    pCutoff = 0.01,
+    drawConnectors = TRUE,
+    typeConnectors = "closed"
+
 )
 ```
 
-## DESeq2 table
+## Counts matrix
+Salmon / tximport estimated gene counts.
+No pre-filtering applied.
 
+```{r, echo=F}
+counts_df <- as.data.frame(counts(dds_unfiltered))
+datatable(counts_df,
+  extensions = "Buttons",
+  options = list(
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print"),
+    search = list(search = "EPI321")
+  )
+)
+
+```
+
+
+## DESeq2 table
+Pre-filtering applied.
 ```{r, echo=F}
 round_cols <- names(res.df)[sapply(res.df, is.numeric)]
 datatable(res.df,
