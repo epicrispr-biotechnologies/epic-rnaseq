@@ -244,7 +244,6 @@ pheatmap(sampleDistMatrix,
 # Differential gene expression analysis
 Identify DEGs via DESeq2 and display them in a volcano plot.
 Pre-filtering applied to keep only genes that have a count of at least 10 reads summed across all samples.
-log2FoldChange defined by log2(`r numerator`/`r denominator`).
 
 ```{r, warning=TRUE}
 
@@ -280,6 +279,7 @@ denominator <- contrast %>% strsplit(" ") %>% unlist %>% tail(1)
 ```
 
 ## Volcano plot
+log2FoldChange defined by log2(`r numerator`/`r denominator`).
 
 ```{r, fig.height=10, fig.width=10}
 
