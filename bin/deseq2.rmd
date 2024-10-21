@@ -244,6 +244,7 @@ pheatmap(sampleDistMatrix,
 # Differential gene expression analysis
 Identify DEGs via DESeq2 and display them in a volcano plot.
 Pre-filtering applied to keep only genes that have a count of at least 10 reads summed across all samples.
+log2FoldChange defined by log2(`r numerator`/`r denominator`).
 
 ```{r, warning=TRUE}
 
@@ -252,7 +253,11 @@ if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
 } else if ("6-MONTH" %in% metadata$condition & "3-MONTH" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","6-MONTH","3-MONTH"), alpha = 0.01)
 } else if ("UD" %in% metadata$condition & "D2" %in% metadata$condition) {
-  res <- results(dds, contrast=c("condition","D2","UD"), alpha = 0.01) 
+  res <- results(dds, contrast=c("condition","D2","UD"), alpha = 0.01)
+} else if ("UD" %in% metadata$condition & "D7" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","D7","UD"), alpha = 0.01)
+} else if ("D2" %in% metadata$condition & "D7" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","D7","D2"), alpha = 0.01) 
 } else {
   warning("No contrast specified. Using default contrast.")
   res <- results(dds, alpha = 0.01)
@@ -262,11 +267,7 @@ res.df <- as.data.frame(res)
 res.df <- res.df %>% dplyr::mutate(
   regulation=ifelse(log2FoldChange < 0, "Downregulated", "Upregulated")
 )
-```
 
-## Volcano plot
-
-```{r, fig.height=10, fig.width=10}
 get_contrast <- function(result_obj) {
   contrast_string <- elementMetadata(result_obj)["log2FoldChange","description"]
   words <- strsplit(contrast_string, "\\s+")[[1]]  # Split the string by whitespace
@@ -274,6 +275,14 @@ get_contrast <- function(result_obj) {
   return(paste(contrast, collapse = " "))  # Combine them back into a single string
 }
 contrast <- get_contrast(res)
+numerator <- contrast %>% strsplit(" ") %>% unlist %>% head(1)
+denominator <- contrast %>% strsplit(" ") %>% unlist %>% tail(1)
+```
+
+## Volcano plot
+
+```{r, fig.height=10, fig.width=10}
+
 
 EnhancedVolcano(res,
     lab = rownames(res),
