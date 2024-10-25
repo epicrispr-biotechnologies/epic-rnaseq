@@ -94,9 +94,6 @@ library(DESeq2)
 library(tximport)
 library(clusterProfiler)
 library(vsn)
-
-# Install dev version of EnhancedVolcano
-if (!require(EnchancedVolcano, quietly=TRUE)){devtools::install_github('kevinblighe/EnhancedVolcano')}
 library(EnhancedVolcano)
 ```
 # Dataset overview
