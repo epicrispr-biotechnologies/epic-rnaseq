@@ -11,6 +11,7 @@ include { DESEQ2_QC as DESEQ2_QC_STAR_SALMON } from '../../modules/local/deseq2_
 include { DESEQ2_QC as DESEQ2_QC_RSEM        } from '../../modules/local/deseq2_qc'
 include { DESEQ2_QC as DESEQ2_QC_PSEUDO      } from '../../modules/local/deseq2_qc'
 include { MULTIQC_CUSTOM_BIOTYPE             } from '../../modules/local/multiqc_custom_biotype'
+include { DESEQ2_REPORT as DESEQ2_REPORT     } from '../../modules/local/deseq2_report'
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
@@ -760,6 +761,20 @@ workflow RNASEQ {
             []
         )
         ch_multiqc_report = MULTIQC.out.report
+    }
+
+    //
+    // MODULE: DESEQ2_REPORT
+    //
+
+    ch_deseq2_report = Channel.empty()
+
+    if (!params.skip_deseq2_report) {
+
+        DESEQ2_REPORT()
+
+        ch_deseq2_report = DESEQ2_REPORT.out.hello_file
+        ch_deseq2_report.view()
     }
 
     emit:
