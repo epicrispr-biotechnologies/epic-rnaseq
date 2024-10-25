@@ -1,0 +1,26 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - r-base
+  - r-readr
+  - r-tidyverse
+  - r-stringr
+  - r-pheatmap
+  - r-rcolorbrewer
+  - r-gridextra
+  - bioconductor-org.hs.eg.db
+  - r-purrr
+  - r-dt
+  - bioconductor-deseq2
+  - bioconductor-tximport
+  - bioconductor-clusterprofiler
+  - bioconductor-vsn
+  - bioconductor-enhancedvolcano
+  - pandoc
+  - r-rmarkdown
+  - r-rmdformats
+  - r-devtools
+  - r-hexbin
