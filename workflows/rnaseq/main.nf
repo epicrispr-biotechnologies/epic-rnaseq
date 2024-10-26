@@ -770,10 +770,14 @@ workflow RNASEQ {
     ch_deseq2_report = Channel.empty()
 
     if (!params.skip_deseq2_report) {
+        
+        star_salmon_dir = Channel.fromPath("${params.outdir}/star_salmon")
+        DESEQ2_REPORT(
+            QUANTIFY_STAR_SALMON.out.results.collect(),
+            star_salmon_dir
+        )
 
-        DESEQ2_REPORT()
-
-        ch_deseq2_report = DESEQ2_REPORT.out.hello_file
+        ch_deseq2_report = DESEQ2_REPORT.out.ls_file
         ch_deseq2_report.view()
     }
 

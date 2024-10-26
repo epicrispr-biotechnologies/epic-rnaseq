@@ -8,10 +8,14 @@ process DESEQ2_REPORT {
         'https://depot.galaxyproject.org/singularity/mulled-v2-8849acf39a43cdd6c839a369a74c0adc823e2f91:ab110436faf952a33575c64dd74615a84011450b-0' :
         'biocontainers/mulled-v2-8849acf39a43cdd6c839a369a74c0adc823e2f91:ab110436faf952a33575c64dd74615a84011450b-0' }"
 
+    input:
+    val star_salmon_files
+    path star_salmon_dir
+
     output:
-    path "hello.txt", emit: hello_file
+    path "ls.txt", emit: ls_file
     script:
     """
-    echo 'Hello, World!' > hello.txt
+    ls -l ${star_salmon_dir} > "ls.txt"
     """
 }
