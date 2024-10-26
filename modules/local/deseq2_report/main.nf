@@ -14,7 +14,7 @@ process DESEQ2_REPORT {
     path clustering_header_multiqc
 
     output:
-    path "hello.txt" emit: hello_file
+    path "hello.txt", emit: hello_file
     script:
     """
     echo 'Hello, World!' > hello.txt
