@@ -10,12 +10,19 @@ process DESEQ2_REPORT {
 
     input:
     val star_salmon_files
+    path tx2gene
+    path samplesheet
     path star_salmon_dir
 
     output:
     path "ls.txt", emit: ls_file
+    path "deseq2.html", emit: report
+    path "*.tsv", emit: deseq2_tsv
+
     script:
     """
     ls -l ${star_salmon_dir} > "ls.txt"
+    Rscript -e "rmarkdown::render('bin/deseq2.rmd', params = list(study = 'RNAseq_1M', metadata_path = ${samplesheet}, salmon_path = ${star_salmon_dir}, deg_path = 'RNAseq_1M_degs.tsv'))"
+
     """
 }

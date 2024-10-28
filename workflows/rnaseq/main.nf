@@ -767,6 +767,7 @@ workflow RNASEQ {
     // MODULE: DESEQ2_REPORT
     //
 
+    ch_deseq2_ls = Channel.empty()
     ch_deseq2_report = Channel.empty()
 
     if (!params.skip_deseq2_report) {
@@ -774,11 +775,13 @@ workflow RNASEQ {
         star_salmon_dir = Channel.fromPath("${params.outdir}/star_salmon")
         DESEQ2_REPORT(
             QUANTIFY_STAR_SALMON.out.results.collect(),
+            QUANTIFY_STAR_SALMON.out.tx2gene,
+            ch_samplesheet,
             star_salmon_dir
         )
-
-        ch_deseq2_report = DESEQ2_REPORT.out.ls_file
-        ch_deseq2_report.view()
+        ch_deseq2_ls = DESEQ2_REPORT.out.ls_file
+        ch_deseq2_report = DESEQ2_REPORT.out.report
+    
     }
 
     emit:
@@ -786,6 +789,7 @@ workflow RNASEQ {
     map_status     = ch_map_status     // channel: [id, boolean]
     strand_status  = ch_strand_status  // channel: [id, boolean]
     multiqc_report = ch_multiqc_report // channel: /path/to/multiqc_report.html
+    deseq2_report  = ch_deseq2_report  // channel: /path/to/deseq2.html
     versions       = ch_versions       // channel: [ path(versions.yml) ]
 }
 
