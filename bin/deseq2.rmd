@@ -8,7 +8,7 @@ title: |
   | Differential gene expression analysis report
   | `r params$study`
 date: "`r Sys.Date()`"
-author: "Tyler Borrman"
+author: "`r Sys.info()[['user']]`"
 version: "1.0"
 output:
   rmdformats::readthedown:
@@ -53,7 +53,6 @@ packages_to_check <- c(
   "pheatmap",
   "RColorBrewer",
   "gridExtra",
-  "org.Hs.eg.db",
   "purrr",
   "DT"
 )
@@ -71,7 +70,8 @@ packages_for_BiocManager <- c(
   "DESeq2",
   "tximport",
   "clusterProfiler",
-  "vsn"
+  "vsn",
+  "org.Hs.eg.db"
 )
 
 for (pkg in packages_for_BiocManager) {

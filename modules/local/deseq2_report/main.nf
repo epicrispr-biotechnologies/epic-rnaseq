@@ -16,7 +16,7 @@ process DESEQ2_REPORT {
 
     output:
     path "ls.txt", emit: ls_file
-    path "deseq2.html", emit: report
+    path "deseq2_report.html", emit: report
     path "*.tsv", emit: deseq2_tsv
 
     script:
@@ -33,7 +33,7 @@ process DESEQ2_REPORT {
     echo "'\${PWD}'"
     echo "'mypwd${mypwd}'"
     echo "Staging path: ${task.workDir}"
-    Rscript -e "rmarkdown::render('//nextflow-bin/deseq2.rmd', params = list(study = 'RNAseq_1M', metadata_path = '\${PWD}/${samplesheet}', salmon_path = '\${PWD}/${star_salmon_dir}', deg_path = 'RNAseq_1M_degs.tsv'))"
+    Rscript -e "rmarkdown::render('//nextflow-bin/deseq2.rmd', output_file = 'deseq2_report.html', output_dir = '\${PWD}', intermediates_dir = '\${PWD}', params = list(study = 'RNAseq_1M', metadata_path = '\${PWD}/${samplesheet}', salmon_path = '\${PWD}/${star_salmon_dir}', deg_path = '\${PWD}/RNAseq_1M_degs.tsv'))"
 
     """
 }
