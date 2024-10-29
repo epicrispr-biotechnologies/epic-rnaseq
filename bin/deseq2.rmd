@@ -4,11 +4,12 @@ params:
   metadata_path: "path/to/metadata.csv"
   salmon_path: "path/to/salmon"
   deg_path: "path/to/deseq2/degs.tsv"
+  user: "User"
 title: |
   | Differential gene expression analysis report
   | `r params$study`
 date: "`r Sys.Date()`"
-author: "`r Sys.info()[['user']]`"
+author: "`r params$user`"
 version: "1.0"
 output:
   rmdformats::readthedown:
@@ -30,7 +31,8 @@ rmarkdown::render(
     study = "JIRA_BDS-1008_Mouse_3m", 
     metadata_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
     salmon_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
-    deg_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv"
+    deg_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv",
+    user = "tborrman"
   )
 )
 -->
