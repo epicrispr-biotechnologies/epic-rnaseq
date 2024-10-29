@@ -4,7 +4,7 @@ process DESEQ2_REPORT {
     // (Bio)conda packages have intentionally not been pinned to a specific version
     // This was to avoid the pipeline failing due to package conflicts whilst creating the environment when using -profile conda
     conda "${moduleDir}/environment.yml"
-    container "'075615082992.dkr.ecr.us-west-2.amazonaws.com/deseq2_report:latest"
+    container "075615082992.dkr.ecr.us-west-2.amazonaws.com/deseq2_report:latest"
 
     input:
     val star_salmon_files
