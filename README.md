@@ -1,9 +1,12 @@
+
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/nf-core-rnaseq_logo_dark.png">
-    <img alt="nf-core/rnaseq" src="docs/images/nf-core-rnaseq_logo_light.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/Epicripr_RGB.png">
+    <img alt="epic-rnaseq" src="docs/images/Epicrispr_RGB.png" width="267" height="166">
   </picture>
 </h1>
+
+# epic-rnaseq
 
 [![GitHub Actions CI Status](https://github.com/nf-core/rnaseq/actions/workflows/ci.yml/badge.svg)](https://github.com/nf-core/rnaseq/actions/workflows/ci.yml)
 [![GitHub Actions Linting Status](https://github.com/nf-core/rnaseq/actions/workflows/linting.yml/badge.svg)](https://github.com/nf-core/rnaseq/actions/workflows/linting.yml)[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/rnaseq/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.1400710-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.1400710)[![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
@@ -18,11 +21,7 @@
 
 ## Introduction
 
-**nf-core/rnaseq** is a bioinformatics pipeline that can be used to analyse RNA sequencing data obtained from organisms with a reference genome and annotation. It takes a samplesheet and FASTQ files as input, performs quality control (QC), trimming and (pseudo-)alignment, and produces a gene expression matrix and extensive QC report.
-
-![nf-core/rnaseq metro map](docs/images/nf-core-rnaseq_metro_map_grey_animated.svg)
-
-> In case the image above is not loading, please have a look at the [static version](docs/images/nf-core-rnaseq_metro_map_grey.png).
+**epic-rnaseq** is a bioinformatics pipeline that can be used to analyse RNA sequencing data obtained from organisms with a reference genome and annotation. It takes a samplesheet and FASTQ files as input, performs quality control (QC), trimming and (pseudo-)alignment, and produces a gene expression matrix, extensive QC report, and a differential expression analysis report.
 
 1. Merge re-sequenced FastQ files ([`cat`](http://www.linfo.org/cat.html))
 2. Auto-infer strandedness by subsampling and pseudoalignment ([`fq`](https://github.com/stjude-rust-labs/fq), [`Salmon`](https://combine-lab.github.io/salmon/))
@@ -48,6 +47,7 @@
     5. [`DESeq2`](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
 15. Pseudoalignment and quantification ([`Salmon`](https://combine-lab.github.io/salmon/) or ['Kallisto'](https://pachterlab.github.io/kallisto/); _optional_)
 16. Present QC for raw read, alignment, gene biotype, sample similarity, and strand-specificity checks ([`MultiQC`](http://multiqc.info/), [`R`](https://www.r-project.org/))
+17. Perform differential expression analysis via [`DESeq2`](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
 
 > **Note**
 > The SRA download functionality has been removed from the pipeline (`>=3.2`) and ported to an independent workflow called [nf-core/fetchngs](https://nf-co.re/fetchngs). You can provide `--nf_core_pipeline rnaseq` when running nf-core/fetchngs to download and auto-create a samplesheet containing publicly available samples that can be accepted directly as input by this pipeline.
@@ -65,10 +65,11 @@ First, prepare a samplesheet with your input data that looks as follows:
 **samplesheet.csv**:
 
 ```csv
-sample,fastq_1,fastq_2,strandedness
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,auto
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz,auto
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz,auto
+sample,fastq_1,fastq_2,strandedness,condition
+LS-R-1,RNAseq_1M_LS-R-1_R1_001.fastq.gz,RNAseq_1M_LS-R-1_R2_001.fastq.gz,auto,CONTROL
+LS-R-2,RNAseq_1M_LS-R-2_R1_001.fastq.gz,RNAseq_1M_LS-R-2_R2_001.fastq.gz,auto,CONTROL
+LS-R-6,RNAseq_1M_LS-R-6_R1_001.fastq.gz,RNAseq_1M_LS-R-6_R2_001.fastq.gz,auto,EPI321
+LS-R-7,RNAseq_1M_LS-R-7_R1_001.fastq.gz,RNAseq_1M_LS-R-7_R2_001.fastq.gz,auto,EPI321
 ```
 
 Each row represents a fastq file (single-end) or a pair of fastq files (paired end). Rows with the same sample identifier are considered technical replicates and merged automatically. The strandedness refers to the library preparation and will be automatically inferred if set to `auto`.
@@ -78,15 +79,23 @@ Each row represents a fastq file (single-end) or a pair of fastq files (paired e
 > provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_;
 > see [docs](https://nf-co.re/usage/configuration#custom-configuration-files).
 
-Now, you can run the pipeline using:
+Now, you can run the pipeline.
+
+Example run:
 
 ```bash
-nextflow run nf-core/rnaseq \
-    --input <SAMPLESHEET> \
-    --outdir <OUTDIR> \
-    --gtf <GTF> \
-    --fasta <GENOME FASTA> \
-    -profile <docker/singularity/.../institute>
+nextflow run https://github.com/epicrispr-biotechnologies/epic-rnaseq \
+    --user tborrman \
+    --study JIRA_XXXX_study \
+    --input s3://epic-bio-data-us-west-2/nextflow/nextflow_data/off-target-pipeline/RNAseq_1M_samplesheet.csv \
+    --outdir s3://epic-bio-data-us-west-2/tborrman/test_epic-rnaseq_deseq2_RNAsesq_1M/ \
+    -bucket-dir s3://epic-bio-data-us-west-2/tborrman/test/ \
+    --fasta s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/genome_fasta/Homo_sapiens.GRCh38.dna.primary_assembly.109.cas_molecule.fa \
+    --gtf s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/gene_annotation/Homo_sapiens.GRCh38.109.cas_molecule.gtf \
+    --star_index s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/indices/star_index \
+    --salmon_index s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/indices/salmon_index \
+    -profile awsbatch,docker \
+    -latest
 ```
 
 > [!WARNING]
