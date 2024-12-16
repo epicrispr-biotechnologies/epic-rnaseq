@@ -242,7 +242,7 @@ pheatmap(sampleDistMatrix,
 
 # Differential gene expression analysis
 Identify DEGs via DESeq2 and display them in a volcano plot.
-Pre-filtering applied to keep only genes that have a count of at least 10 reads summed across all samples.
+Pre-filtering applied to keep only genes that have a count of at least 10 reads summed across all samples.  
 
 ```{r, warning=TRUE}
 
@@ -275,7 +275,11 @@ get_contrast <- function(result_obj) {
 contrast <- get_contrast(res)
 numerator <- contrast %>% strsplit(" ") %>% unlist %>% head(1)
 denominator <- contrast %>% strsplit(" ") %>% unlist %>% tail(1)
+
+total_sig_degs <- nrow(subset(res.df, padj < 0.01 & abs(log2FoldChange) > 2))
 ```
+
+**`r total_sig_degs`** DEGs were identified with adjusted p-value < 0.01 and log2FoldChange > 2.
 
 ## Volcano plot
 log2FoldChange defined by log2(`r numerator`/`r denominator`).
@@ -289,10 +293,10 @@ EnhancedVolcano(res,
     x = "log2FoldChange",
     y = "padj",
     caption = paste(" Total DEGS:", nrow(res.df),
-      "log2FC >2: ", nrow(subset(res.df,log2FoldChange >= 2.0)),
-      "log2FC < -2: ", nrow(subset(res.df,log2FoldChange <= -2.0)),
-      "*significant log2FC >2: ", nrow(subset(res.df, log2FoldChange >= 2.0 & padj <=0.01)),
-      "*significant log2FC <2: ", nrow(subset(res.df, log2FoldChange <= -2.0 & padj <=0.01)),
+      "log2FC >2: ", nrow(subset(res.df,log2FoldChange > 2.0)),
+      "log2FC < -2: ", nrow(subset(res.df,log2FoldChange < -2.0)),
+      "*significant log2FC >2: ", nrow(subset(res.df, log2FoldChange > 2.0 & padj < 0.01)),
+      "*significant log2FC <2: ", nrow(subset(res.df, log2FoldChange < -2.0 & padj < 0.01)),
       "*Using adjusted p-values"),
     captionLabSize = 11,
     FCcutoff = 2,
