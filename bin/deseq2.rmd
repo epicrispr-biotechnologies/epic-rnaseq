@@ -191,7 +191,18 @@ PCA analysis on top 500 genes with greatest variance using VST transformed data
 # PCA biplot
 pca_obj <- plotPCA(vsd, intgroup=c("sample", "condition"), returnData = T)
 ggplot(pca_obj, aes(x = PC1, y = PC2, color = condition)) + 
-  geom_point(size=3)
+  geom_point(size=3) + 
+  coord_fixed(ratio=1,
+    xlim=c(min(pca_obj$PC1, pca_obj$PC2), max(pca_obj$PC1, pca_obj$PC2)),
+    ylim=c(min(pca_obj$PC1, pca_obj$PC2), max(pca_obj$PC1, pca_obj$PC2))
+  ) +
+  geom_text(aes(label=rownames(pca_obj)), hjust=0, vjust=0, show.legend=FALSE) + 
+  theme(
+    axis.title=element_text(size=18),
+    axis.text=element_text(size=12),
+    legend.title=element_text(size=18),
+    legend.text=element_text(size=12)
+  )
 ```
 
 
@@ -279,25 +290,26 @@ denominator <- contrast %>% strsplit(" ") %>% unlist %>% tail(1)
 total_sig_degs <- nrow(subset(res.df, padj < 0.01 & abs(log2FoldChange) > 2))
 ```
 
-**`r total_sig_degs`** DEGs were identified with adjusted p-value < 0.01 and log2FoldChange > 2.
+**`r total_sig_degs`** DEGs were identified with adjusted p-value < 0.01 and absolute log2FoldChange > 2.
 
 ## Volcano plot
-log2FoldChange defined by log2(`r numerator`/`r denominator`).
+log2FoldChange defined by log2(`r numerator`/`r denominator`).  
+p-value refers to the adjusted p-value.
 
 ```{r, fig.height=10, fig.width=10}
 
 
 EnhancedVolcano(res,
     lab = rownames(res),
-    title = paste(contrast,"Total DEGs: threshold of log2FC=2, pCutoff=0.01"),
+    title = contrast,
     x = "log2FoldChange",
     y = "padj",
-    caption = paste(" Total DEGS:", nrow(res.df),
-      "log2FC >2: ", nrow(subset(res.df,log2FoldChange > 2.0)),
-      "log2FC < -2: ", nrow(subset(res.df,log2FoldChange < -2.0)),
-      "*significant log2FC >2: ", nrow(subset(res.df, log2FoldChange > 2.0 & padj < 0.01)),
-      "*significant log2FC <2: ", nrow(subset(res.df, log2FoldChange < -2.0 & padj < 0.01)),
-      "*Using adjusted p-values"),
+    caption = paste(" Total genes:", nrow(res.df),
+      " log2FC > 2: ", nrow(subset(res.df,log2FoldChange > 2.0)),
+      " log2FC < -2: ", nrow(subset(res.df,log2FoldChange < -2.0)),
+      " significant log2FC > 2: ", nrow(subset(res.df, log2FoldChange > 2.0 & padj < 0.01)),
+      " significant log2FC < 2: ", nrow(subset(res.df, log2FoldChange < -2.0 & padj < 0.01))
+      ),
     captionLabSize = 11,
     FCcutoff = 2,
     pCutoff = 0.01,
