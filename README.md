@@ -87,16 +87,17 @@ Example run:
 nextflow run https://github.com/epicrispr-biotechnologies/epic-rnaseq \
     --user tborrman \
     --study JIRA_XXXX_study \
-    --input s3://epic-bio-data-us-west-2/nextflow/nextflow_data/off-target-pipeline/RNAseq_1M_samplesheet.csv \
-    --outdir s3://epic-bio-data-us-west-2/tborrman/test_epic-rnaseq_deseq2_RNAsesq_1M/ \
-    -bucket-dir s3://epic-bio-data-us-west-2/tborrman/test/ \
-    --fasta s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/genome_fasta/Homo_sapiens.GRCh38.dna.primary_assembly.109.cas_molecule.fa \
-    --gtf s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/gene_annotation/Homo_sapiens.GRCh38.109.cas_molecule.gtf \
-    --star_index s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/indices/star_index \
-    --salmon_index s3://epic-bio-data-us-west-2/ref_genome_index/human/ensembl/release_109/indices/salmon_index \
+    --input samplesheet.csv \
+    --outdir output_data/ \
+    -bucket-dir intermediate_data/ \
+    --fasta reference.fa \
+    --gtf reference.gtf \
+    --star_index star_index \
+    --salmon_index salmon_index \
     -profile awsbatch,docker \
     -latest
 ```
+Note: all file and directory paths can either be local or AWS s3 paths
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_;
