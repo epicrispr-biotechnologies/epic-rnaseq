@@ -267,10 +267,17 @@ if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","D7","UD"), alpha = 0.01)
 } else if ("D2" %in% metadata$condition & "D7" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","D7","D2"), alpha = 0.01) 
+} else if ("EPI321" %in% metadata$condition & "UNTREATED" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","EPI321","UNTREATED"), alpha = 0.01) 
+} else if ("EPI321" %in% metadata$condition & "STOP" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","EPI321","STOP"), alpha = 0.01) 
+} else if ("STOP" %in% metadata$condition & "UNTREATED" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","STOP","UNTREATED"), alpha = 0.01) 
 } else {
   warning("No contrast specified. Using default contrast.")
   res <- results(dds, alpha = 0.01)
 }
+
 res$gene <- rownames(res)
 res.df <- as.data.frame(res)
 res.df <- res.df %>% dplyr::mutate(

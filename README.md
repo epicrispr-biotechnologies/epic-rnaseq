@@ -72,6 +72,18 @@ LS-R-6,RNAseq_1M_LS-R-6_R1_001.fastq.gz,RNAseq_1M_LS-R-6_R2_001.fastq.gz,auto,EP
 LS-R-7,RNAseq_1M_LS-R-7_R1_001.fastq.gz,RNAseq_1M_LS-R-7_R2_001.fastq.gz,auto,EPI321
 ```
 
+**condition** column must only contain values from the following list of conditions (case sensitive):
+* CONTROL
+* EPI321
+* 3-MONTH
+* 6-MONTH
+* UD
+* D2
+* D7
+* UNTREATED
+* STOP
+
+
 Each row represents a fastq file (single-end) or a pair of fastq files (paired end). Rows with the same sample identifier are considered technical replicates and merged automatically. The strandedness refers to the library preparation and will be automatically inferred if set to `auto`.
 
 > **Warning:**
