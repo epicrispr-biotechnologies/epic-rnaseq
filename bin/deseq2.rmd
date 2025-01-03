@@ -5,6 +5,8 @@ params:
   salmon_path: "path/to/salmon"
   deg_path: "path/to/deseq2/degs.tsv"
   user: "User"
+  l2fc: 1
+  padj: 0.05
 title: |
   | Differential gene expression analysis report
   | `r params$study`
@@ -32,7 +34,9 @@ rmarkdown::render(
     metadata_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/mouse_3m_samplesheet_deseq2.csv",
     salmon_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/salmon",
     deg_path = "G:/My Drive/EPI-321/off_target/pipelines/epic-rnaseq/epic-rnaseq/JIRA_BDS-1008_Mouse_3m/deseq2/JIRA_BDS-1008_Mouse_3m_degs.tsv",
-    user = "tborrman"
+    user = "tborrman",
+    l2fc = 1,
+    padj = 0.05
   )
 )
 -->
@@ -257,6 +261,9 @@ Pre-filtering applied to keep only genes that have a count of at least 10 reads 
 
 ```{r, warning=TRUE}
 
+l2fc_thresh <- params$l2fc
+padj_thresh <- params$padj
+
 if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","EPI321","CONTROL"), alpha = 0.01) 
 } else if ("6-MONTH" %in% metadata$condition & "3-MONTH" %in% metadata$condition) {
@@ -294,10 +301,10 @@ contrast <- get_contrast(res)
 numerator <- contrast %>% strsplit(" ") %>% unlist %>% head(1)
 denominator <- contrast %>% strsplit(" ") %>% unlist %>% tail(1)
 
-total_sig_degs <- nrow(subset(res.df, padj < 0.01 & abs(log2FoldChange) > 2))
+total_sig_degs <- nrow(subset(res.df, padj < padj_thresh & abs(log2FoldChange) > l2fc_thresh))
 ```
 
-**`r total_sig_degs`** DEGs were identified with adjusted p-value < 0.01 and absolute log2FoldChange > 2.
+**`r total_sig_degs`** DEGs were identified with adjusted p-value < `r padj_thresh` and absolute log2FoldChange > `r l2fc_thresh`.
 
 ## Volcano plot
 log2FoldChange defined by log2(`r numerator`/`r denominator`).  
@@ -312,14 +319,14 @@ EnhancedVolcano(res,
     x = "log2FoldChange",
     y = "padj",
     caption = paste(" Total genes:", nrow(res.df),
-      " log2FC > 2: ", nrow(subset(res.df,log2FoldChange > 2.0)),
-      " log2FC < -2: ", nrow(subset(res.df,log2FoldChange < -2.0)),
-      " significant log2FC > 2: ", nrow(subset(res.df, log2FoldChange > 2.0 & padj < 0.01)),
-      " significant log2FC < 2: ", nrow(subset(res.df, log2FoldChange < -2.0 & padj < 0.01))
+      " log2FC > ", l2fc_thresh, ": ", nrow(subset(res.df,log2FoldChange > l2fc_thresh)),
+      " log2FC < -", l2fc_thresh, ": ", nrow(subset(res.df,log2FoldChange < -l2fc_thresh)),
+      " significant log2FC > ", l2fc_thresh, ": ", nrow(subset(res.df, log2FoldChange > l2fc_thresh & padj < padj_thresh)),
+      " significant log2FC < -", l2fc_thresh, ": ", nrow(subset(res.df, log2FoldChange < -l2fc_thresh & padj < padj_thresh))
       ),
     captionLabSize = 11,
-    FCcutoff = 2,
-    pCutoff = 0.01,
+    FCcutoff = l2fc_thresh,
+    pCutoff = padj_thresh,
     drawConnectors = TRUE,
     typeConnectors = "open"
 
