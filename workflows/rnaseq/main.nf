@@ -778,7 +778,9 @@ workflow RNASEQ {
             ch_samplesheet,
             star_salmon_dir,
             params.user,
-            params.study
+            params.study,
+            params.l2fc,
+            params.padj
         )
         ch_deseq2_report = DESEQ2_REPORT.out.report
     }

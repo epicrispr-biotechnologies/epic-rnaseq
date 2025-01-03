@@ -13,6 +13,8 @@ process DESEQ2_REPORT {
     path star_salmon_dir
     val user
     val study
+    val l2fc
+    val padj
 
     output:
     path "*deseq2_report.html", emit: report
@@ -30,7 +32,9 @@ process DESEQ2_REPORT {
             metadata_path = '\${PWD}/${samplesheet}',
             salmon_path = '\${PWD}/${star_salmon_dir}',
             deg_path = '\${PWD}/${study}_degs.tsv',
-            user = '${user}'
+            user = '${user}',
+            l2fc = ${l2fc},
+            padj = ${padj}
         )
     )"
 
