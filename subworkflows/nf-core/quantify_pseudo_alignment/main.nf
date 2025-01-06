@@ -113,6 +113,7 @@ workflow QUANTIFY_PSEUDO_ALIGNMENT {
     tpm_transcript                = TXIMETA_TXIMPORT.out.tpm_transcript            //    path: *gene_tpm.tsv
     counts_transcript             = TXIMETA_TXIMPORT.out.counts_transcript         //    path: *transcript_counts.tsv
     lengths_transcript            = TXIMETA_TXIMPORT.out.lengths_transcript        //    path: *transcript_lengths.tsv
+    tx2gene                       = CUSTOM_TX2GENE.out.tx2gene                     //    path: tx2gene.tsv
 
     merged_gene_rds               = SE_GENE.out.rds                                //    path: *.rds
     merged_gene_rds_length_scaled = SE_GENE_LENGTH_SCALED.out.rds                  //    path: *.rds

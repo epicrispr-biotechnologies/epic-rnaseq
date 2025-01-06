@@ -11,6 +11,7 @@ include { DESEQ2_QC as DESEQ2_QC_STAR_SALMON } from '../../modules/local/deseq2_
 include { DESEQ2_QC as DESEQ2_QC_RSEM        } from '../../modules/local/deseq2_qc'
 include { DESEQ2_QC as DESEQ2_QC_PSEUDO      } from '../../modules/local/deseq2_qc'
 include { MULTIQC_CUSTOM_BIOTYPE             } from '../../modules/local/multiqc_custom_biotype'
+include { DESEQ2_REPORT as DESEQ2_REPORT     } from '../../modules/local/deseq2_report'
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
@@ -762,11 +763,34 @@ workflow RNASEQ {
         ch_multiqc_report = MULTIQC.out.report
     }
 
+    //
+    // MODULE: DESEQ2_REPORT
+    //
+
+    ch_deseq2_report = Channel.empty()
+
+    if (!params.skip_deseq2_report) {
+        
+        star_salmon_dir = Channel.fromPath("${params.outdir}/star_salmon")
+        DESEQ2_REPORT(
+            QUANTIFY_STAR_SALMON.out.results.collect(),
+            QUANTIFY_STAR_SALMON.out.tx2gene,
+            ch_samplesheet,
+            star_salmon_dir,
+            params.user,
+            params.study,
+            params.l2fc,
+            params.padj
+        )
+        ch_deseq2_report = DESEQ2_REPORT.out.report
+    }
+
     emit:
     trim_status    = ch_trim_status    // channel: [id, boolean]
     map_status     = ch_map_status     // channel: [id, boolean]
     strand_status  = ch_strand_status  // channel: [id, boolean]
     multiqc_report = ch_multiqc_report // channel: /path/to/multiqc_report.html
+    deseq2_report  = ch_deseq2_report  // channel: /path/to/deseq2_report.html
     versions       = ch_versions       // channel: [ path(versions.yml) ]
 }
 

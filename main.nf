@@ -129,6 +129,7 @@ workflow NFCORE_RNASEQ {
     map_status     = RNASEQ.out.map_status     // channel: [id, boolean]
     strand_status  = RNASEQ.out.strand_status  // channel: [id, boolean]
     multiqc_report = RNASEQ.out.multiqc_report // channel: /path/to/multiqc_report.html
+    deseq2_report  = RNASEQ.out.deseq2_report  // channel: /path/to/deseq2.html
     versions       = ch_versions               // channel: [version1, version2, ...]
 }
 

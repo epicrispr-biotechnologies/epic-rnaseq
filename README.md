@@ -1,9 +1,12 @@
+
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/nf-core-rnaseq_logo_dark.png">
-    <img alt="nf-core/rnaseq" src="docs/images/nf-core-rnaseq_logo_light.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/Epicripr_RGB.png">
+    <img alt="epic-rnaseq" src="docs/images/Epicrispr_RGB.png" width="267" height="166">
   </picture>
 </h1>
+
+# epic-rnaseq
 
 [![GitHub Actions CI Status](https://github.com/nf-core/rnaseq/actions/workflows/ci.yml/badge.svg)](https://github.com/nf-core/rnaseq/actions/workflows/ci.yml)
 [![GitHub Actions Linting Status](https://github.com/nf-core/rnaseq/actions/workflows/linting.yml/badge.svg)](https://github.com/nf-core/rnaseq/actions/workflows/linting.yml)[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/rnaseq/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.1400710-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.1400710)[![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
@@ -18,11 +21,7 @@
 
 ## Introduction
 
-**nf-core/rnaseq** is a bioinformatics pipeline that can be used to analyse RNA sequencing data obtained from organisms with a reference genome and annotation. It takes a samplesheet and FASTQ files as input, performs quality control (QC), trimming and (pseudo-)alignment, and produces a gene expression matrix and extensive QC report.
-
-![nf-core/rnaseq metro map](docs/images/nf-core-rnaseq_metro_map_grey_animated.svg)
-
-> In case the image above is not loading, please have a look at the [static version](docs/images/nf-core-rnaseq_metro_map_grey.png).
+**epic-rnaseq** is a bioinformatics pipeline that can be used to analyse RNA sequencing data obtained from organisms with a reference genome and annotation. It takes a samplesheet and FASTQ files as input, performs quality control (QC), trimming and (pseudo-)alignment, and produces a gene expression matrix, extensive QC report, and a differential expression analysis report.
 
 1. Merge re-sequenced FastQ files ([`cat`](http://www.linfo.org/cat.html))
 2. Auto-infer strandedness by subsampling and pseudoalignment ([`fq`](https://github.com/stjude-rust-labs/fq), [`Salmon`](https://combine-lab.github.io/salmon/))
@@ -48,6 +47,7 @@
     5. [`DESeq2`](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
 15. Pseudoalignment and quantification ([`Salmon`](https://combine-lab.github.io/salmon/) or ['Kallisto'](https://pachterlab.github.io/kallisto/); _optional_)
 16. Present QC for raw read, alignment, gene biotype, sample similarity, and strand-specificity checks ([`MultiQC`](http://multiqc.info/), [`R`](https://www.r-project.org/))
+17. Perform differential expression analysis via [`DESeq2`](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
 
 > **Note**
 > The SRA download functionality has been removed from the pipeline (`>=3.2`) and ported to an independent workflow called [nf-core/fetchngs](https://nf-co.re/fetchngs). You can provide `--nf_core_pipeline rnaseq` when running nf-core/fetchngs to download and auto-create a samplesheet containing publicly available samples that can be accepted directly as input by this pipeline.
@@ -65,11 +65,23 @@ First, prepare a samplesheet with your input data that looks as follows:
 **samplesheet.csv**:
 
 ```csv
-sample,fastq_1,fastq_2,strandedness
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,auto
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz,auto
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz,auto
+sample,fastq_1,fastq_2,strandedness,condition
+LS-R-1,RNAseq_1M_LS-R-1_R1_001.fastq.gz,RNAseq_1M_LS-R-1_R2_001.fastq.gz,auto,CONTROL
+LS-R-2,RNAseq_1M_LS-R-2_R1_001.fastq.gz,RNAseq_1M_LS-R-2_R2_001.fastq.gz,auto,CONTROL
+LS-R-6,RNAseq_1M_LS-R-6_R1_001.fastq.gz,RNAseq_1M_LS-R-6_R2_001.fastq.gz,auto,EPI321
+LS-R-7,RNAseq_1M_LS-R-7_R1_001.fastq.gz,RNAseq_1M_LS-R-7_R2_001.fastq.gz,auto,EPI321
 ```
+
+**condition** column must only contain values from the following list of conditions (case sensitive):
+* CONTROL
+* EPI321
+* 3-MONTH
+* 6-MONTH
+* UD
+* D2
+* D7
+* UNTREATED
+* STOP
 
 Each row represents a fastq file (single-end) or a pair of fastq files (paired end). Rows with the same sample identifier are considered technical replicates and merged automatically. The strandedness refers to the library preparation and will be automatically inferred if set to `auto`.
 
@@ -78,16 +90,45 @@ Each row represents a fastq file (single-end) or a pair of fastq files (paired e
 > provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_;
 > see [docs](https://nf-co.re/usage/configuration#custom-configuration-files).
 
-Now, you can run the pipeline using:
+Now, you can run the pipeline.
+
+Example run:
 
 ```bash
-nextflow run nf-core/rnaseq \
-    --input <SAMPLESHEET> \
-    --outdir <OUTDIR> \
-    --gtf <GTF> \
-    --fasta <GENOME FASTA> \
-    -profile <docker/singularity/.../institute>
+nextflow run https://github.com/epicrispr-biotechnologies/epic-rnaseq \
+    --user tborrman \
+    --study JIRA_XXXX_study \
+    --input samplesheet.csv \
+    --outdir output_data/ \
+    --fasta reference.fa \
+    --gtf reference.gtf \
+    --star_index star_index \
+    --salmon_index salmon_index \
+    --l2fc 1 \
+    --padj 0.05 \
+    -bucket-dir intermediate_data/ \
+    -profile awsbatch,docker \
+    -latest
 ```
+
+**Pipeline arguments:**
+- user: Username for user invoking a run of the pipeline. `string`
+- study: Study name specifiying JIRA ticket and description of contrast for differential expression analysis. `string`
+- input: Path to comma-separated file containing information about the samples in the experiment. `string`
+- outdir: The output directory where the results will be saved. `string`
+- fasta: Path to FASTA genome file. `string`
+- gtf: Path to GTF annotation file. `string`
+- star_index: Path to directory or tar.gz archive for pre-built STAR index (optional). `string`
+- salmon_index: Path to directory or tar.gz archive for pre-built Salmon index (optional). `string`
+- l2fc: Log2 fold change threshold for differential expression analysis (default = 1). `float`
+- padj: Adjusted p-value threshold for differential expression analysis (default = 0.05). `float`
+
+**Nextflow run options:**
+- bucket-dir: Remote bucket where intermediate result files are stored.
+- profile: Choose a configuration profile.
+- latest: Pull latest changes before run
+  
+Note: all file and directory paths can either be local or AWS s3 paths
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_;
