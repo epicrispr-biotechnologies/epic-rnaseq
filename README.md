@@ -83,7 +83,6 @@ LS-R-7,RNAseq_1M_LS-R-7_R1_001.fastq.gz,RNAseq_1M_LS-R-7_R2_001.fastq.gz,auto,EP
 * UNTREATED
 * STOP
 
-
 Each row represents a fastq file (single-end) or a pair of fastq files (paired end). Rows with the same sample identifier are considered technical replicates and merged automatically. The strandedness refers to the library preparation and will be automatically inferred if set to `auto`.
 
 > **Warning:**
@@ -101,14 +100,34 @@ nextflow run https://github.com/epicrispr-biotechnologies/epic-rnaseq \
     --study JIRA_XXXX_study \
     --input samplesheet.csv \
     --outdir output_data/ \
-    -bucket-dir intermediate_data/ \
     --fasta reference.fa \
     --gtf reference.gtf \
     --star_index star_index \
     --salmon_index salmon_index \
+    --l2fc 1 \
+    --padj 0.05 \
+    -bucket-dir intermediate_data/ \
     -profile awsbatch,docker \
     -latest
 ```
+
+**Pipeline arguments:**
+- user: Username for user invoking a run of the pipeline. `string`
+- study: Study name specifiying JIRA ticket and description of contrast for differential expression analysis. `string`
+- input: Path to comma-separated file containing information about the samples in the experiment. `string`
+- outdir: The output directory where the results will be saved. `string`
+- fasta: Path to FASTA genome file. `string`
+- gtf: Path to GTF annotation file. `string`
+- star_index: Path to directory or tar.gz archive for pre-built STAR index (optional). `string`
+- salmon_index: Path to directory or tar.gz archive for pre-built Salmon index (optional). `string`
+- l2fc: Log2 fold change threshold for differential expression analysis (default = 1). `float`
+- padj: Adjusted p-value threshold for differential expression analysis (default = 0.05). `float`
+
+**Nextflow run options:**
+- bucket-dir: Remote bucket where intermediate result files are stored.
+- profile: Choose a configuration profile.
+- latest: Pull latest changes before run
+  
 Note: all file and directory paths can either be local or AWS s3 paths
 
 > [!WARNING]
