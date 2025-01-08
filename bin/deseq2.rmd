@@ -107,7 +107,7 @@ library(EnhancedVolcano)
 ```{r sample_info}
 # Load metadata
 metadata <- read_csv(params$metadata_path)
-metadata <- metadata[c("sample", "condition")]
+metadata <- metadata[c("sample", "condition", "sex")]
 datatable(metadata)
 metadata <- as.data.frame(metadata)
 rownames(metadata) <- metadata$sample
@@ -135,7 +135,7 @@ txi <- tximport(files, type="salmon", tx2gene=tx2gene)
 dds_unfiltered <- DESeqDataSetFromTximport(
   txi,
   colData = metadata,
-  design = ~ condition
+  design = ~ sex + condition
 )
 
 ```
@@ -351,7 +351,7 @@ datatable(counts_df,
 ```
 
 
-## DESeq2 table
+## DESeq2 table EPI321 vs CONTROL
 Pre-filtering applied.
 ```{r, echo=F}
 round_cols <- names(res.df)[sapply(res.df, is.numeric)]
@@ -369,3 +369,40 @@ formatSignif(
 write_tsv(res.df, params$deg_path)
 ```
 
+## DESeq2 table FEMALE vs MALE
+```{r, echo=F}
+sex_res <- results(dds, contrast=c("sex", "F", "M"), alpha = 0.01)
+sex_res$gene <- rownames(sex_res)
+sex.df <- as.data.frame(sex_res)
+sex.df <- sex.df %>% dplyr::mutate(
+  regulation=ifelse(log2FoldChange < 0, "Downregulated", "Upregulated")
+)
+round_cols <- names(sex.df)[sapply(sex.df, is.numeric)]
+datatable(sex.df,
+  extensions = "Buttons",
+  options = list(
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print")
+  )
+) %>%
+formatSignif(
+  columns = round_cols,
+  digits = 7
+)
+```
+## DESeq2 table FEMALE vs MALE remove padj NA
+```{r, echo=F}
+sex.rm.na <- sex.df[!is.na(sex.df$padj),]
+round_cols <- names(sex.rm.na)[sapply(sex.rm.na, is.numeric)]
+datatable(sex.rm.na,
+  extensions = "Buttons",
+  options = list(
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print")
+  )
+) %>%
+formatSignif(
+  columns = round_cols,
+  digits = 7
+)
+```
