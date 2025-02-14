@@ -286,6 +286,8 @@ if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","NT","UNTREATED"), alpha = 0.01) 
 } else if ("NT" %in% metadata$condition & "STOP" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","STOP","NT"), alpha = 0.01) 
+} else if ("Myo_D7" %in% metadata$condition & "Testes" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","Myo_D7","Testes"), alpha = 0.01) 
 } else {
   warning("No contrast specified. Using default contrast.")
   res <- results(dds, alpha = 0.01)
