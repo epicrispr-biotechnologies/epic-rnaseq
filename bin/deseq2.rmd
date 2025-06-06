@@ -107,7 +107,7 @@ library(EnhancedVolcano)
 ```{r sample_info}
 # Load metadata
 metadata <- read_csv(params$metadata_path)
-metadata <- metadata[c("sample", "condition", "sex")]
+metadata <- metadata[c("sample", "condition", "dose")]
 datatable(metadata)
 metadata <- as.data.frame(metadata)
 rownames(metadata) <- metadata$sample
@@ -135,7 +135,7 @@ txi <- tximport(files, type="salmon", tx2gene=tx2gene)
 dds_unfiltered <- DESeqDataSetFromTximport(
   txi,
   colData = metadata,
-  design = ~ sex + condition
+  design = ~ dose + condition
 )
 
 ```
@@ -280,6 +280,8 @@ if ("EPI321" %in% metadata$condition & "CONTROL" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","EPI321","STOP"), alpha = 0.01) 
 } else if ("STOP" %in% metadata$condition & "UNTREATED" %in% metadata$condition) {
   res <- results(dds, contrast=c("condition","STOP","UNTREATED"), alpha = 0.01) 
+} else if ("CONTROL" %in% metadata$condition & "TREATMENT" %in% metadata$condition) {
+  res <- results(dds, contrast=c("condition","TREATMENT","CONTROL"), alpha = 0.01) 
 } else {
   warning("No contrast specified. Using default contrast.")
   res <- results(dds, alpha = 0.01)
@@ -369,16 +371,16 @@ formatSignif(
 write_tsv(res.df, params$deg_path)
 ```
 
-## DESeq2 table FEMALE vs MALE
+## DESeq2 table LOW vs HIGH
 ```{r, echo=F}
-sex_res <- results(dds, contrast=c("sex", "F", "M"), alpha = 0.01)
-sex_res$gene <- rownames(sex_res)
-sex.df <- as.data.frame(sex_res)
-sex.df <- sex.df %>% dplyr::mutate(
+dose_res <- results(dds, contrast=c("dose", "LOW", "HIGH"), alpha = 0.01)
+dose_res$gene <- rownames(dose_res)
+dose.df <- as.data.frame(dose_res)
+dose.df <- dose.df %>% dplyr::mutate(
   regulation=ifelse(log2FoldChange < 0, "Downregulated", "Upregulated")
 )
-round_cols <- names(sex.df)[sapply(sex.df, is.numeric)]
-datatable(sex.df,
+round_cols <- names(dose.df)[sapply(dose.df, is.numeric)]
+datatable(dose.df,
   extensions = "Buttons",
   options = list(
     dom = "Bfrtip",
@@ -390,11 +392,11 @@ formatSignif(
   digits = 7
 )
 ```
-## DESeq2 table FEMALE vs MALE remove padj NA
+## DESeq2 table LOW vs HIGH remove padj NA
 ```{r, echo=F}
-sex.rm.na <- sex.df[!is.na(sex.df$padj),]
-round_cols <- names(sex.rm.na)[sapply(sex.rm.na, is.numeric)]
-datatable(sex.rm.na,
+dose.rm.na <- dose.df[!is.na(dose.df$padj),]
+round_cols <- names(dose.rm.na)[sapply(dose.rm.na, is.numeric)]
+datatable(dose.rm.na,
   extensions = "Buttons",
   options = list(
     dom = "Bfrtip",
