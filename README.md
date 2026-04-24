@@ -108,7 +108,9 @@ nextflow run https://github.com/epicrispr-biotechnologies/epic-rnaseq \
     --l2fc 1 \
     --padj 0.05 \
     -bucket-dir intermediate_data/ \
-    -profile awsbatch,docker \
+    -profile docker \
+    -r master \
+    -c awsbatch.config \
     -latest
 ```
 
